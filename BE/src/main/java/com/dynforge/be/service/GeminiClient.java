@@ -37,16 +37,20 @@ public class GeminiClient {
     private final String apiKey;
 
     /**
-     * Ordered fallback chain — Lite models first (500 RPD), then standard Flash (20 RPD).
-     * Each model has its own independent quota on Google's free tier.
+     * Ordered fallback chain matching Google AI Studio Quota Dashboard.
+     * Lite models first (500 RPD each = 1,000 RPD), then Flash models (20 RPD each).
+     * Total pool: >1,100 requests/day completely free.
      */
     private static final List<String> MODEL_CASCADE = List.of(
-            "gemini-3.5-flash-lite",   // 500 RPD, 15 RPM
-            "gemini-3.1-flash-lite",   // 500 RPD, 15 RPM
+            "gemini-3.5-flash-lite",   // 500 RPD, 15 RPM (Đang hoạt động tốt)
+            "gemini-3.1-flash-lite",   // 500 RPD, 15 RPM (Dự phòng 500 RPD)
+            "gemini-3.8-flash",        //  20 RPD,  5 RPM (Flash mạnh nhất)
+            "gemini-3.7-flash",        //  20 RPD,  5 RPM
+            "gemini-3.6-flash",        //  20 RPD,  5 RPM
             "gemini-3.5-flash",        //  20 RPD,  5 RPM
             "gemini-3-flash",          //  20 RPD,  5 RPM
-            "gemini-3.6-flash",        //  20 RPD,  5 RPM
-            "gemini-2.5-flash-lite"    //  20 RPD, 10 RPM
+            "gemini-2.5-flash-lite",   //  20 RPD, 10 RPM
+            "gemini-2.5-flash"         //  20 RPD,  5 RPM
     );
 
     public GeminiClient(
@@ -113,10 +117,13 @@ public class GeminiClient {
             } catch (Exception e) {
                 lastException = e;
                 String msg = e.getMessage() != null ? e.getMessage() : "";
-                if (msg.contains("429") || msg.contains("RESOURCE_EXHAUSTED")) {
-                    log.warn("⚡ Model [{}] quota exceeded → switching to next model in cascade...", model);
+                if (msg.contains("429") || msg.contains("RESOURCE_EXHAUSTED")
+                        || msg.contains("503") || msg.contains("UNAVAILABLE")
+                        || msg.contains("high demand") || msg.contains("500")
+                        || msg.contains("502") || msg.contains("504")) {
+                    log.warn("⚡ Model [{}] unavailable or quota exceeded ({}) → switching to next model in cascade...", model, msg);
                 } else {
-                    // Non-quota error — don't cascade, throw immediately
+                    // Non-transient error (e.g. 400 Bad Request, 401 Unauthorized) — don't cascade, throw immediately
                     log.error("DynForge AI call failed on model [{}]: {}", model, msg);
                     throw new BadRequestException("Không thể kết nối với DynForge AI: " + msg);
                 }
@@ -134,10 +141,8 @@ public class GeminiClient {
     /** Calls the Gemini generateContent endpoint for a specific model. */
     private Map<?, ?> callGemini(String model, Map<String, Object> body) {
         Map<?, ?> resp = restClient.post()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/v1beta/models/{model}:generateContent")
-                        .queryParam("key", apiKey)
-                        .build(model))
+                .uri("/v1beta/models/{model}:generateContent", model)
+                .header("X-goog-api-key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
