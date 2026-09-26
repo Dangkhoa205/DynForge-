@@ -6,8 +6,16 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { useAuth, AuthRole } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useUniversity } from '../context/UniversityContext';
 import { toast } from 'sonner';
 
 import Lottie from 'lottie-react';
@@ -230,12 +238,13 @@ export function Register() {
   const defaultApplyRole = searchParams.get('apply') === 'mentor' ? 'mentor' : 'mentee';
 
   const { registerWithCredentials } = useAuth();
-  const { T } = useLanguage();
+  const { T, lang } = useLanguage();
+  const { universities, setSelectedCode } = useUniversity();
   const [role, setRole] = useState<AuthRole>(defaultApplyRole);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [university, setUniversity] = useState('FPT University');
+  const [universityCode, setUniversityCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -252,8 +261,10 @@ export function Register() {
         email: email.trim(),
         password,
         role: role === 'mentor' ? 'MENTOR' : 'MENTEE',
-        university,
+        university: universityCode,
       });
+      // Scope mentor discovery to the chosen university (verify later via school email).
+      if (universityCode) setSelectedCode(universityCode);
       toast.success('Account created successfully!');
       navigate(u.dashboardPath ?? DASHBOARD_PATHS[u.role]);
     } catch (err: any) {
@@ -325,6 +336,27 @@ export function Register() {
             className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 rounded-xl h-10 text-sm"
             value={password} onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
+
+        <div>
+          <Label className="mb-1 block text-xs text-slate-300">{T.university}</Label>
+          <Select value={universityCode || undefined} onValueChange={setUniversityCode}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl h-10 text-sm">
+              <SelectValue placeholder={T.selectUniversity} />
+            </SelectTrigger>
+            <SelectContent className="bg-[#090f1e] text-white border-white/10">
+              {universities.map((u) => (
+                <SelectItem key={u.code} value={u.code}>{u.shortName || u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {role === 'mentor' && (
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              {lang === 'vi'
+                ? 'Bạn sẽ xác minh trường bằng email trường sau khi đăng ký.'
+                : 'You will verify your university with a school email after signing up.'}
+            </p>
+          )}
         </div>
 
         <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl h-11 mt-2" disabled={loading}>

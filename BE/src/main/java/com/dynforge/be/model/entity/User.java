@@ -7,9 +7,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
 
 import java.time.Instant;
 import java.util.Set;
@@ -40,9 +43,20 @@ public class User {
 
     private String major;
 
+    /** The university this user belongs to (denormalized reference to University.id). */
+    @Field(targetType = FieldType.OBJECT_ID)
+    private ObjectId universityId;
+
     private String year;
 
     private String avatarUrl;
+
+    /** Verified school email (unique across users once verified). */
+    private String schoolEmail;
+
+    /** True once the user has verified ownership of a {@link #schoolEmail}. */
+    @Builder.Default
+    private boolean schoolVerified = false;
 
     @Builder.Default
     private long walletBalance = 0;

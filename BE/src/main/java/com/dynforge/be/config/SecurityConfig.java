@@ -76,8 +76,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers("/api/wallet/webhook").permitAll()
+                        // "/search" must precede "/me" and "/**" so it is publicly reachable.
+                        .requestMatchers(HttpMethod.GET, "/api/mentors/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/mentors/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/mentors/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/universities/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/resources").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/verifications/mine").authenticated()

@@ -30,6 +30,7 @@ public class VerificationService {
     public VerificationResponse submit(User user, VerificationRequestDto dto) {
         VerificationRequest request = VerificationRequest.builder()
                 .userId(new ObjectId(user.getId()))
+                .universityId(user.getUniversityId())
                 .course(dto.course())
                 .claimedGrade(dto.claimedGrade())
                 .transcriptUrl(dto.transcriptUrl())
@@ -71,8 +72,12 @@ public class VerificationService {
             // Upsert: create a minimal profile if the mentor hasn't set one up yet,
             // so approval always results in a verified, listable mentor.
             ObjectId mentorUserId = request.getUserId();
+            ObjectId mentorUniversityId = request.getUniversityId();
             MentorProfile profile = mentorRepository.findByUserId(mentorUserId)
-                    .orElseGet(() -> MentorProfile.builder().userId(mentorUserId).build());
+                    .orElseGet(() -> MentorProfile.builder()
+                            .userId(mentorUserId)
+                            .universityId(mentorUniversityId)
+                            .build());
             profile.setVerified(true);
             mentorRepository.save(profile);
         }

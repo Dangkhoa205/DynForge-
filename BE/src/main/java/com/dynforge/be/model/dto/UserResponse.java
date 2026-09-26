@@ -16,6 +16,10 @@ public record UserResponse(
         String major,
         String year,
         String avatarUrl,
+        String universityId,
+        String universityName,
+        String universityCode,
+        boolean schoolVerified,
         long walletBalance,
         UserStatus status,
         Instant createdAt

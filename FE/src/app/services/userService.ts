@@ -10,6 +10,10 @@ export interface UserProfile {
   major?: string;
   year?: string;
   avatarUrl?: string;
+  universityId?: string;
+  universityName?: string;
+  universityCode?: string;
+  schoolVerified?: boolean;
   walletBalance: number;
   status: string;
   createdAt: string;

@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface MentorRepository extends MongoRepository<MentorProfile, String> {
+public interface MentorRepository extends MongoRepository<MentorProfile, String>, MentorRepositoryCustom {
 
     Optional<MentorProfile> findByUserId(ObjectId userId);
 
@@ -18,4 +18,8 @@ public interface MentorRepository extends MongoRepository<MentorProfile, String>
     List<MentorProfile> findByVerified(boolean verified);
 
     List<MentorProfile> findByVerifiedAndCourses_Code(boolean verified, String courseCode);
+
+    List<MentorProfile> findByUniversityIdIsNull();
+
+    long countByUniversityIdAndVerifiedTrue(ObjectId universityId);
 }

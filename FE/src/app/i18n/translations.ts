@@ -502,6 +502,20 @@ const t = {
     studentWorkspace: 'Student Workspace',
     mentorPortal: 'Mentor Portal',
     adminConsole: 'Admin Console',
+
+    // ── Multi-university ─────────────────────────────────────
+    selectUniversity: 'Select university',
+    allUniversities: 'All universities',
+    verifiedStudentOf: 'Verified student of {university}',
+    verifySchoolEmail: 'Verify with school email',
+    schoolEmailPrompt: 'Enter your school email',
+    schoolEmailSent: 'We sent a verification code to your school email.',
+    schoolEmailOtpPrompt: 'Enter the 6-digit code',
+    schoolEmailVerified: 'School email verified!',
+    comingSoonAtUniversity: 'DynForge is launching soon at {university}',
+    joinWaitlist: 'Join the waitlist',
+    showMentorsFromOtherSchools: 'Show mentors from other schools',
+    generalEducationNote: 'General-education courses can be taught by mentors from other schools too.',
   },
 
   vi: {
@@ -1001,6 +1015,20 @@ const t = {
     studentWorkspace: 'Không gian học viên',
     mentorPortal: 'Cổng gia sư',
     adminConsole: 'Bảng quản trị',
+
+    // ── Multi-university ─────────────────────────────────────
+    selectUniversity: 'Chọn trường',
+    allUniversities: 'Tất cả các trường',
+    verifiedStudentOf: 'Đã xác minh sinh viên {university}',
+    verifySchoolEmail: 'Xác minh bằng email trường',
+    schoolEmailPrompt: 'Nhập email trường của bạn',
+    schoolEmailSent: 'Chúng tôi đã gửi mã xác minh đến email trường của bạn.',
+    schoolEmailOtpPrompt: 'Nhập mã gồm 6 chữ số',
+    schoolEmailVerified: 'Đã xác minh email trường!',
+    comingSoonAtUniversity: 'DynForge sắp mở tại {university}',
+    joinWaitlist: 'Đăng ký nhận thông báo',
+    showMentorsFromOtherSchools: 'Xem cả mentor ngoài trường',
+    generalEducationNote: 'Môn đại cương thì mentor trường khác vẫn có thể dạy được.',
   },
 } as const;
 

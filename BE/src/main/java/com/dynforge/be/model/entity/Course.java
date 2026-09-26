@@ -19,4 +19,11 @@ public class Course {
     private String grade;
     private long ratePrivate;
     private long rateGroup;
+    /**
+     * General-education course (e.g. Calculus, Philosophy, General Physics).
+     * Mentors from other universities may still teach these, so from phase 2
+     * such courses are NOT filtered out by university.
+     */
+    @Builder.Default
+    private boolean generalEducation = false;
 }

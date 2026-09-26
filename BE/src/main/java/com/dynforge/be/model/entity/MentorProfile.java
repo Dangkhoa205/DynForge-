@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -21,6 +22,8 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document("mentor_profiles")
+@CompoundIndex(name = "uni_verified_major_idx",
+               def = "{'universityId': 1, 'verified': 1, 'major': 1}")
 public class MentorProfile {
 
     @Id
@@ -37,6 +40,15 @@ public class MentorProfile {
     /** Academic major (matches the mentee search filter options). */
     private String major;
 
+    /** The university this mentor belongs to (reference to University.id). */
+    @Field(targetType = FieldType.OBJECT_ID)
+    private ObjectId universityId;
+
+    /**
+     * Fast-read denormalized copy of {@link University#getName()}.
+     * Kept as free text so the existing frontend does not break; the source of
+     * truth is {@link #universityId}.
+     */
     private String university;
 
     /** e.g. "Senior Student", "Alumni Mentor", "Lecturer", "Research Advisor". */

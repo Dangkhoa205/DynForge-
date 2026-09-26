@@ -443,6 +443,11 @@ export const revenueTrend = [
   { month: 'Jun', revenue: 81000000, commission: 12150000 },
 ];
 
+/**
+ * @deprecated The platform is now multi-university. Load universities from the
+ * backend via `listUniversities()` in services/universityService.ts instead of
+ * this hardcoded list. Kept only so existing imports do not break.
+ */
 export const universities = [
   'FPT University HCM Campus',
 ];

@@ -12,4 +12,6 @@ public interface VerificationRepository extends MongoRepository<VerificationRequ
     List<VerificationRequest> findByStatus(VerificationStatus status);
 
     List<VerificationRequest> findByUserId(ObjectId userId);
+
+    List<VerificationRequest> findByUniversityIdIsNull();
 }

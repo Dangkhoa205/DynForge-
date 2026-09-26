@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { UniversityProvider } from './context/UniversityContext';
 import { PublicLayout } from './components/layouts/PublicLayout';
 import { DashboardLayout } from './components/layouts/DashboardLayout';
 import { RoleRoute, ProtectedRoute } from './components/RouteGuards';
@@ -70,6 +71,8 @@ const router = createBrowserRouter([
       // Mentor discovery — canonical + aliases
       { path: '/mentors', element: <MentorListing /> },
       { path: '/find-mentors', element: <MentorListing /> },
+      // University-scoped discovery (locks the university filter to :code)
+      { path: '/truong/:code', element: <MentorListing /> },
 
       // Mentor profile — canonical + alias
       { path: '/mentors/:id', element: <MentorProfile /> },
@@ -214,8 +217,10 @@ export default function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
-        <Toaster position="top-center" richColors />
+        <UniversityProvider>
+          <RouterProvider router={router} />
+          <Toaster position="top-center" richColors />
+        </UniversityProvider>
       </AuthProvider>
     </LanguageProvider>
   );

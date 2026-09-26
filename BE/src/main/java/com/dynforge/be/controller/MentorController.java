@@ -3,6 +3,7 @@ package com.dynforge.be.controller;
 import com.dynforge.be.model.dto.ApiResponse;
 import com.dynforge.be.model.dto.MentorProfileRequest;
 import com.dynforge.be.model.dto.MentorProfileResponse;
+import com.dynforge.be.model.dto.PageResponse;
 import com.dynforge.be.security.UserPrincipal;
 import com.dynforge.be.service.MentorService;
 import jakarta.validation.Valid;
@@ -32,6 +33,20 @@ public class MentorController {
             @RequestParam(required = false) Boolean verified
     ) {
         return ApiResponse.ok(mentorService.listMentors(course, format, verified));
+    }
+
+    // NOTE: declared before "/{id}" so "search" is not captured as a path variable.
+    @GetMapping("/search")
+    public ApiResponse<PageResponse<MentorProfileResponse>> search(
+            @RequestParam(required = false) String university,
+            @RequestParam(required = false) String major,
+            @RequestParam(required = false) String course,
+            @RequestParam(required = false) String format,
+            @RequestParam(required = false) Boolean verified,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ApiResponse.ok(mentorService.searchMentors(university, major, course, format, verified, page, size));
     }
 
     @GetMapping("/me")

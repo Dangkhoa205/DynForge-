@@ -23,6 +23,8 @@ public class VerificationMapper {
                 request.getCourse(),
                 request.getClaimedGrade(),
                 request.getTranscriptUrl(),
+                request.getType(),
+                request.getAlumniProofUrl(),
                 request.getStatus(),
                 request.getReviewedBy() != null ? request.getReviewedBy().toHexString() : null,
                 request.getReviewedAt(),

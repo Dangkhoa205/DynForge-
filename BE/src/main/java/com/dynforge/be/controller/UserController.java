@@ -3,9 +3,12 @@ package com.dynforge.be.controller;
 import com.dynforge.be.mapper.UserMapper;
 import com.dynforge.be.model.dto.ApiResponse;
 import com.dynforge.be.model.dto.ChangePasswordRequest;
+import com.dynforge.be.model.dto.SchoolEmailRequest;
+import com.dynforge.be.model.dto.SchoolEmailVerifyRequest;
 import com.dynforge.be.model.dto.UpdateProfileRequest;
 import com.dynforge.be.model.dto.UserResponse;
 import com.dynforge.be.security.UserPrincipal;
+import com.dynforge.be.service.SchoolEmailService;
 import com.dynforge.be.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ public class UserController {
 
     private final UserMapper userMapper;
     private final UserService userService;
+    private final SchoolEmailService schoolEmailService;
 
     @GetMapping("/me")
     public ApiResponse<UserResponse> me(@AuthenticationPrincipal UserPrincipal principal) {
@@ -47,5 +51,25 @@ public class UserController {
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         userService.changePassword(principal.getUser(), request);
+    }
+
+    /** Step 1: request an OTP to the given school email (domain must belong to a University). */
+    @PostMapping("/me/school-email/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestSchoolEmail(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody SchoolEmailRequest request
+    ) {
+        schoolEmailService.requestVerification(principal.getUser(), request.email());
+    }
+
+    /** Step 2: confirm the OTP; on success the user is marked schoolVerified. */
+    @PostMapping("/me/school-email/verify")
+    public ApiResponse<UserResponse> verifySchoolEmail(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody SchoolEmailVerifyRequest request
+    ) {
+        schoolEmailService.confirmVerification(principal.getUser(), request.otp());
+        return ApiResponse.ok("Đã xác minh email trường", userMapper.toResponse(principal.getUser()));
     }
 }

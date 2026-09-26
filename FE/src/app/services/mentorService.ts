@@ -18,6 +18,8 @@ export interface MentorProfileResponse {
   bio?: string;
   major?: string;
   university?: string;
+  universityId?: string;
+  universityCode?: string;
   teachingRole?: string;
   courses: BackendCourse[];
   skills: string[];
@@ -33,6 +35,40 @@ export interface MentorProfileResponse {
 export async function listMentors(course?: string): Promise<MentorProfileResponse[]> {
   const { data } = await api.get('/api/mentors', { params: course ? { course } : {} });
   return data.data as MentorProfileResponse[];
+}
+
+export interface PageResponse<T> {
+  items: T[];
+  page: number;
+  size: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface MentorSearchParams {
+  university?: string;   // code slug (e.g. "FPTU-HCM") or ObjectId
+  major?: string;
+  course?: string;
+  format?: string;
+  verified?: boolean;
+  page?: number;
+  size?: number;
+}
+
+/** Database-side, paginated mentor search (see GET /api/mentors/search). */
+export async function searchMentors(
+  params: MentorSearchParams = {},
+): Promise<PageResponse<MentorProfileResponse>> {
+  const query: Record<string, string | number | boolean> = {};
+  if (params.university) query.university = params.university;
+  if (params.major) query.major = params.major;
+  if (params.course) query.course = params.course;
+  if (params.format) query.format = params.format;
+  if (params.verified !== undefined) query.verified = params.verified;
+  if (params.page !== undefined) query.page = params.page;
+  if (params.size !== undefined) query.size = params.size;
+  const { data } = await api.get('/api/mentors/search', { params: query });
+  return data.data as PageResponse<MentorProfileResponse>;
 }
 
 export async function getMentorById(id: string): Promise<MentorProfileResponse> {

@@ -15,6 +15,8 @@ import { StepProgress } from '../../components/common';
 import { cn } from '../../components/ui/utils';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useUniversity } from '../../context/UniversityContext';
 import { majors } from '../../data/mockData';
 import {
   listMyVerifications, submitVerification, type VerificationItem,
@@ -22,6 +24,7 @@ import {
 import {
   getMyMentorProfile, updateMyMentorProfile, type BackendCourse,
 } from '../../services/mentorService';
+import { requestSchoolEmail, verifySchoolEmail } from '../../services/schoolEmailService';
 
 // Must match the mentee search filter options (MentorListing).
 const TEACHING_ROLES = ['Senior Student', 'Alumni Mentor', 'Lecturer', 'Research Advisor'];
@@ -143,6 +146,8 @@ const baseDocuments = [
 
 export function TeacherVerification() {
   const { refreshUser } = useAuth();
+  const { T, lang } = useLanguage();
+  const { universities } = useUniversity();
   const [existing, setExisting] = useState<VerificationItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -152,6 +157,45 @@ export function TeacherVerification() {
   const [bio, setBio] = useState('');
   const [major, setMajor] = useState('');
   const [university, setUniversity] = useState('FPT University HCM');
+  const [universityCode, setUniversityCode] = useState('');
+
+  // School-email verification (see mục A — copies the OTP flow)
+  const [schoolEmail, setSchoolEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [schoolBusy, setSchoolBusy] = useState(false);
+  const [schoolVerified, setSchoolVerified] = useState(false);
+
+  const requestSchool = async () => {
+    if (!schoolEmail.trim()) { toast.error(T.schoolEmailPrompt); return; }
+    setSchoolBusy(true);
+    try {
+      await requestSchoolEmail(schoolEmail.trim());
+      setOtpSent(true);
+      toast.success(T.schoolEmailSent);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Failed to send code.');
+    } finally {
+      setSchoolBusy(false);
+    }
+  };
+
+  const confirmSchool = async () => {
+    if (!otp.trim()) { toast.error(T.schoolEmailOtpPrompt); return; }
+    setSchoolBusy(true);
+    try {
+      const me = await verifySchoolEmail(otp.trim());
+      setSchoolVerified(true);
+      if (me.universityName) setUniversity(me.universityName);
+      if (me.universityCode) setUniversityCode(me.universityCode);
+      toast.success(T.schoolEmailVerified);
+      await refreshUser();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Invalid or expired code.');
+    } finally {
+      setSchoolBusy(false);
+    }
+  };
   const [teachingRole, setTeachingRole] = useState('Senior Student');
   const [skills, setSkills] = useState('');
   const [languages, setLanguages] = useState('Vietnamese, English');
@@ -184,6 +228,13 @@ export function TeacherVerification() {
       }
     }).finally(() => setLoading(false));
   }, []);
+
+  // Preselect the university dropdown by matching the loaded profile name.
+  useEffect(() => {
+    if (universityCode || !universities.length) return;
+    const match = universities.find((u) => u.name === university || u.shortName === university);
+    if (match) setUniversityCode(match.code);
+  }, [universities, university, universityCode]);
 
   const addFiles = (key: string, files: UploadedFile[]) =>
     setUploadedFiles((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...files] }));
@@ -353,8 +404,62 @@ export function TeacherVerification() {
                 </div>
               </div>
               <div>
-                <Label className="mb-1.5 block">University</Label>
-                <Input value={university} onChange={(e) => setUniversity(e.target.value)} placeholder="e.g. FPT University HCM" className="bg-input-background" />
+                <Label className="mb-1.5 block">{T.university}</Label>
+                <Select
+                  value={universityCode || undefined}
+                  onValueChange={(code) => {
+                    setUniversityCode(code);
+                    const u = universities.find((x) => x.code === code);
+                    if (u) setUniversity(u.name);
+                  }}
+                >
+                  <SelectTrigger className="bg-input-background"><SelectValue placeholder={T.selectUniversity} /></SelectTrigger>
+                  <SelectContent>
+                    {universities.map((u) => <SelectItem key={u.code} value={u.code}>{u.shortName || u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                {/* Verify with school email (mục A) */}
+                <div className="mt-3 rounded-xl border border-border bg-accent/30 p-4">
+                  {schoolVerified ? (
+                    <p className="flex items-center gap-2 text-sm text-success" style={{ fontWeight: 600 }}>
+                      <BadgeCheck className="size-4" />
+                      {university ? T.verifiedStudentOf.replace('{university}', university) : T.schoolEmailVerified}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="flex items-center gap-2 text-sm" style={{ fontWeight: 600 }}>
+                        <Mail className="size-4 text-primary" /> {T.verifySchoolEmail}
+                      </p>
+                      {!otpSent ? (
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Input
+                            type="email"
+                            value={schoolEmail}
+                            onChange={(e) => setSchoolEmail(e.target.value)}
+                            placeholder={lang === 'vi' ? 'ban@fpt.edu.vn' : 'you@fpt.edu.vn'}
+                            className="bg-input-background"
+                          />
+                          <Button type="button" onClick={requestSchool} disabled={schoolBusy}>
+                            {schoolBusy ? <Loader2 className="size-4 animate-spin" /> : T.verifySchoolEmail}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Input
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder={T.schoolEmailOtpPrompt}
+                            className="bg-input-background"
+                          />
+                          <Button type="button" onClick={confirmSchool} disabled={schoolBusy}>
+                            {schoolBusy ? <Loader2 className="size-4 animate-spin" /> : T.confirm}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="mb-1.5 block">Short bio</Label>
