@@ -44,6 +44,7 @@ public class BookingService {
     private final MentorRepository mentorRepository;
     private final EscrowTransactionRepository escrowRepository;
     private final BookingMapper bookingMapper;
+    private final BookingTransitions transitions;
 
     public BookingResponse create(User mentee, BookingRequest request) {
         if (!ObjectId.isValid(request.mentorId())) {
@@ -162,8 +163,11 @@ public class BookingService {
                     "Only unpaid bookings (PENDING_PAYMENT) can be cancelled. Current status is " + booking.getStatus());
         }
 
-        booking.setStatus(BookingStatus.CANCELLED);
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        // Conditional update: if a payment lands at the same moment, the cancel loses instead of
+        // leaving a paid booking marked CANCELLED with money stuck in escrow.
+        Booking cancelled = transitions.transitionOrFail(booking.getId(),
+                EnumSet.of(BookingStatus.PENDING_PAYMENT), BookingStatus.CANCELLED, null);
+        return bookingMapper.toResponse(cancelled);
     }
 
     // price = hourly_rate * durationMin / 60, rounded up to nearest unit

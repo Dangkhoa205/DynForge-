@@ -13,6 +13,7 @@ import { GsapTypewriter } from '../components/GsapTypewriter';
 import { MouseFollowLight } from '../components/MouseFollowLight';
 import { GsapCounter } from '../components/GsapCounter';
 import { getMentorById, isObjectId, backendToMentor } from '../services/mentorService';
+import { isNativeApp } from '../lib/platform';
 
 const durations = [30, 45, 60, 90];
 const customDurations = [120, 180, 240];
@@ -85,10 +86,11 @@ export function ScheduleConsultation() {
   const defaultAvatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
   const mentorAvatar = mentor.avatar?.trim() ? mentor.avatar : defaultAvatar;
 
+  // The Android app only sells live 1:1 sessions (Google Play payments policy), so group booking is web-only.
   const learningModes = [
     { label: T.oneOnOne, format: 'ONE_ON_ONE' as const },
     { label: T.smallGroup || T.group, format: 'GROUP' as const },
-  ];
+  ].filter((m) => !isNativeApp() || m.format === 'ONE_ON_ONE');
 
   const timeSlots = ['08:00', '09:30', '11:00', '13:30', '15:00', '16:30', '19:00', '20:30'];
 

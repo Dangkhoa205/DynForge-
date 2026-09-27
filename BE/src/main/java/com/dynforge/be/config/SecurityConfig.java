@@ -4,6 +4,7 @@ import com.dynforge.be.security.CustomUserDetailsService;
 import com.dynforge.be.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -30,6 +32,10 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    /** Comma-separated, from CORS_ALLOWED_ORIGINS (see application.properties). */
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -51,7 +57,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(o -> !o.isEmpty())
+                .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -74,6 +83,8 @@ public class SecurityConfig {
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Session-scoped AI features need the logged-in participant; chat/matchmaker stay public.
+                        .requestMatchers("/api/ai/sessions/**").authenticated()
                         .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers("/api/wallet/webhook").permitAll()
                         // "/search" must precede "/me" and "/**" so it is publicly reachable.
@@ -87,6 +98,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/verifications/**").hasRole("ADMIN")
                         .requestMatchers("/api/verifications/*/decision").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Session videos are dispute evidence: only admins may download them.
+                        .requestMatchers(HttpMethod.GET, "/api/recordings/**").hasRole("ADMIN")
                         .requestMatchers("/api/bookings/*/resolve").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

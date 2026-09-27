@@ -126,14 +126,12 @@ export function DashboardSettings() {
             <Trash2 className="size-5" /> Danger zone
           </h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            Deleting your account is permanent and cannot be undone. All data including session
-            history, wallet balance, and disputes will be permanently removed.
+            {lang === 'vi'
+              ? 'Xoá tài khoản là vĩnh viễn. Hãy rút hết số dư ví và hoàn tất các buổi học đã thanh toán trước khi xoá.'
+              : 'Deleting your account is permanent. Withdraw your wallet balance and finish any paid sessions first.'}
           </p>
-          <Button
-            variant="destructive"
-            onClick={() => toast.error('Account deletion requires email confirmation. Feature coming soon.')}
-          >
-            Delete my account
+          <Button variant="destructive" onClick={() => navigate('/delete-account')}>
+            {lang === 'vi' ? 'Xoá tài khoản của tôi' : 'Delete my account'}
           </Button>
         </Card>
       </div>

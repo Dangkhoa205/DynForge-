@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router';
+import { App as CapacitorApp } from '@capacitor/app';
+import { APP_SCHEME, isNativeApp } from './lib/platform';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -23,6 +26,12 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { ContactSupport } from './pages/ContactSupport';
 import { Messages } from './pages/Messages';
 import { VelorahLanding } from './pages/VelorahLanding';
+import { PaymentReturn } from './pages/PaymentReturn';
+
+// Legal pages (Google Play: privacy policy URL + account deletion web link)
+import { PrivacyPolicy } from './pages/legal/PrivacyPolicy';
+import { Terms } from './pages/legal/Terms';
+import { DeleteAccount } from './pages/legal/DeleteAccount';
 
 // Error pages
 import { NotFoundPage, PermissionDeniedPage, GlobalErrorBoundary } from './pages/ErrorPages';
@@ -107,6 +116,12 @@ const router = createBrowserRouter([
       { path: '/about', element: <About /> },
       { path: '/velorah', element: <VelorahLanding /> },
       { path: '/support/contact', element: <ContactSupport /> },
+
+      // Legal + payment return (must stay public: linked from Google Play and from PayOS)
+      { path: '/privacy', element: <PrivacyPolicy /> },
+      { path: '/terms', element: <Terms /> },
+      { path: '/delete-account', element: <DeleteAccount /> },
+      { path: '/payment-return', element: <PaymentReturn /> },
     ],
   },
 
@@ -213,7 +228,32 @@ const router = createBrowserRouter([
   { path: '*', element: <NotFoundPage /> },
 ]);
 
+/**
+ * Android app only: PayOS sends the buyer back with dynforge://payment-return?...
+ * (see PaymentReturn + the intent-filter in android/app/src/main/AndroidManifest.xml).
+ */
+function useNativeDeepLinks() {
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    const prefix = `${APP_SCHEME}://`;
+    const listener = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      if (!url.startsWith(prefix)) return;
+      const rest = url.slice(prefix.length);
+      const q = rest.indexOf('?');
+      const path = '/' + (q >= 0 ? rest.slice(0, q) : rest).replace(/^\/+|\/+$/g, '');
+      const search = q >= 0 ? rest.slice(q) : '';
+      if (path === '/payment-return') {
+        router.navigate(path + search);
+      }
+    });
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, []);
+}
+
 export default function App() {
+  useNativeDeepLinks();
   return (
     <LanguageProvider>
       <AuthProvider>

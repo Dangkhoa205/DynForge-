@@ -3,11 +3,13 @@ package com.dynforge.be.controller;
 import com.dynforge.be.mapper.UserMapper;
 import com.dynforge.be.model.dto.ApiResponse;
 import com.dynforge.be.model.dto.ChangePasswordRequest;
+import com.dynforge.be.model.dto.DeleteAccountRequest;
 import com.dynforge.be.model.dto.SchoolEmailRequest;
 import com.dynforge.be.model.dto.SchoolEmailVerifyRequest;
 import com.dynforge.be.model.dto.UpdateProfileRequest;
 import com.dynforge.be.model.dto.UserResponse;
 import com.dynforge.be.security.UserPrincipal;
+import com.dynforge.be.service.AccountDeletionService;
 import com.dynforge.be.service.SchoolEmailService;
 import com.dynforge.be.service.UserService;
 import jakarta.validation.Valid;
@@ -30,6 +32,7 @@ public class UserController {
     private final UserMapper userMapper;
     private final UserService userService;
     private final SchoolEmailService schoolEmailService;
+    private final AccountDeletionService accountDeletionService;
 
     @GetMapping("/me")
     public ApiResponse<UserResponse> me(@AuthenticationPrincipal UserPrincipal principal) {
@@ -71,5 +74,18 @@ public class UserController {
     ) {
         schoolEmailService.confirmVerification(principal.getUser(), request.otp());
         return ApiResponse.ok("Đã xác minh email trường", userMapper.toResponse(principal.getUser()));
+    }
+
+    /**
+     * Permanently deletes the caller's account (Google Play requirement). The user must re-type their
+     * email. Fails with 400 while the wallet has money or a paid session is still open.
+     */
+    @PostMapping("/me/delete-account")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAccount(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody DeleteAccountRequest request
+    ) {
+        accountDeletionService.deleteAccount(principal.getUser(), request.confirmEmail());
     }
 }

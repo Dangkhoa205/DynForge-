@@ -24,6 +24,7 @@ import { StatusBadge } from '../../components/common';
 import { cn } from '../../components/ui/utils';
 import { toast } from 'sonner';
 import { useLanguage } from '../../context/LanguageContext';
+import { isNativeApp } from '../../lib/platform';
 
 // ── Add Funds modal (PayOS) ──────────────
 function AddFundsModal({ onClose }: { onClose: () => void }) {
@@ -263,9 +264,12 @@ export function DashboardWallet() {
             }
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => setShowAddFunds(true)}>
-              <Plus className="size-4" /> {T.addFunds}
-            </Button>
+            {/* Android app: no stored-value top-ups (Google Play payments policy) — sessions are paid one by one. */}
+            {!isNativeApp() && (
+              <Button onClick={() => setShowAddFunds(true)}>
+                <Plus className="size-4" /> {T.addFunds}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowWithdraw(true)}>
               {T.withdraw}
             </Button>
@@ -335,7 +339,7 @@ export function DashboardWallet() {
         )}
       </Card>
 
-      {showAddFunds && <AddFundsModal onClose={() => setShowAddFunds(false)} />}
+      {showAddFunds && !isNativeApp() && <AddFundsModal onClose={() => setShowAddFunds(false)} />}
       {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} balance={balance} />}
     </div>
   );

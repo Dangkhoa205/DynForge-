@@ -13,6 +13,7 @@ import com.dynforge.be.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +37,13 @@ public class DataSeeder implements CommandLineRunner {
 
     private static final String DEFAULT_PASSWORD = "DynForge@123";
 
+    /**
+     * Demo accounts use a password that is published in this repository (admin@dynforge.vn included),
+     * so they must NEVER exist in production. Render sets SEED_DEMO_ACCOUNTS=false.
+     */
+    @Value("${app.seed.demo-accounts:true}")
+    private boolean seedDemoAccounts;
+
     @Override
     public void run(String... args) {
         // ── Universities ─────────────────────────────────────────────────────
@@ -58,6 +66,11 @@ public class DataSeeder implements CommandLineRunner {
                             .createdAt(Instant.now())
                             .build());
                 });
+
+        if (!seedDemoAccounts) {
+            log.info("Demo accounts disabled (SEED_DEMO_ACCOUNTS=false) — skipping.");
+            return;
+        }
 
         if (userRepository.existsByEmail("khoa.tran@dynforge.vn") || userRepository.existsByEmail("khoa.tran@gradora.vn")) {
             log.info("Seed data already present — skipping demo accounts.");

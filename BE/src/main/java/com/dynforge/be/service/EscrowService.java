@@ -14,24 +14,40 @@ import com.dynforge.be.model.enums.TransactionStatus;
 import com.dynforge.be.model.enums.TransactionType;
 import com.dynforge.be.repository.BookingRepository;
 import com.dynforge.be.repository.EscrowTransactionRepository;
-import com.dynforge.be.repository.UserRepository;
 import com.dynforge.be.repository.WalletTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Set;
 
+/**
+ * Escrow lifecycle: PENDING_PAYMENT -> ESCROW_HELD -> ACCEPTED -> TAUGHT -> COMPLETED
+ * (or DISPUTED / REFUNDED).
+ *
+ * <p>Every status change goes through {@link BookingTransitions} (atomic compare-and-set) and every
+ * balance change through {@link WalletBalanceService} (atomic $inc). Concurrent requests on the same
+ * booking can therefore never pay, release or refund twice.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EscrowService {
 
+    private static final Set<BookingStatus> PAID_NOT_TAUGHT =
+            EnumSet.of(BookingStatus.ESCROW_HELD, BookingStatus.ACCEPTED);
+    private static final Set<BookingStatus> DISPUTABLE =
+            EnumSet.of(BookingStatus.ESCROW_HELD, BookingStatus.ACCEPTED, BookingStatus.TAUGHT);
+
     private final BookingRepository bookingRepository;
     private final EscrowTransactionRepository escrowRepository;
     private final WalletTransactionRepository walletTxnRepository;
-    private final UserRepository userRepository;
+    private final WalletBalanceService walletBalanceService;
+    private final BookingTransitions transitions;
     private final BookingMapper bookingMapper;
 
     // ── pay ──────────────────────────────────────────────────────────────────
@@ -42,12 +58,9 @@ public class EscrowService {
         if (!booking.getMenteeId().toHexString().equals(mentee.getId())) {
             throw new BadRequestException("Only the mentee can pay for this booking");
         }
-        requireStatus(booking, BookingStatus.PENDING_PAYMENT);
-
-        if (mentee.getWalletBalance() < booking.getPrice()) {
+        if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
             throw new BadRequestException(
-                    "Insufficient wallet balance. Required: " + booking.getPrice()
-                            + ", available: " + mentee.getWalletBalance());
+                    "Expected booking status PENDING_PAYMENT but was " + booking.getStatus());
         }
 
         long total      = booking.getPrice();
@@ -55,8 +68,20 @@ public class EscrowService {
         long commission = Math.round(total * rate);
         long payout     = total - commission;
 
-        mentee.setWalletBalance(mentee.getWalletBalance() - total);
-        userRepository.save(mentee);
+        // 1. Take the money atomically (fails instead of going negative).
+        if (!walletBalanceService.debit(mentee.getId(), total)) {
+            throw new BadRequestException(
+                    "Insufficient wallet balance. Required: " + total
+                            + ", available: " + walletBalanceService.balanceOf(mentee.getId()));
+        }
+
+        // 2. Claim the booking. If another request paid or cancelled it meanwhile, give the money back.
+        Booking claimed = transitions.transition(bookingId, EnumSet.of(BookingStatus.PENDING_PAYMENT),
+                BookingStatus.ESCROW_HELD, null);
+        if (claimed == null) {
+            walletBalanceService.credit(mentee.getId(), total);
+            throw new BadRequestException("This booking has already been paid or cancelled");
+        }
 
         recordWalletTxn(mentee.getId(), TransactionType.PAYMENT, total,
                 "Payment for booking " + bookingId, bookingId);
@@ -73,157 +98,113 @@ public class EscrowService {
                 .heldAt(Instant.now())
                 .build());
 
-        booking.setEscrowTxnId(new ObjectId(escrow.getId()));
-        booking.setStatus(BookingStatus.ESCROW_HELD);
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        transitions.linkEscrow(bookingId, escrow.getId());
+        return bookingMapper.toResponse(requireBooking(bookingId));
     }
 
     // ── accept request (mentor) ──────────────────────────────────────────────
 
     public BookingResponse accept(User mentor, String bookingId) {
-        Booking booking = requireBooking(bookingId);
-
-        if (!booking.getMentorId().toHexString().equals(mentor.getId())) {
-            throw new BadRequestException("Only the mentor can accept this booking");
-        }
-        requireStatus(booking, BookingStatus.ESCROW_HELD);
-
-        booking.setStatus(BookingStatus.ACCEPTED);
-        booking.setAcceptedAt(Instant.now());
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        requireMentor(mentor, requireBooking(bookingId), "accept");
+        Booking updated = transitions.transitionOrFail(bookingId, EnumSet.of(BookingStatus.ESCROW_HELD),
+                BookingStatus.ACCEPTED, new Update().set("acceptedAt", Instant.now()));
+        return bookingMapper.toResponse(updated);
     }
 
     // ── decline request (mentor) → refund mentee ─────────────────────────────
 
     public BookingResponse decline(User mentor, String bookingId) {
-        Booking booking = requireBooking(bookingId);
-
-        if (!booking.getMentorId().toHexString().equals(mentor.getId())) {
-            throw new BadRequestException("Only the mentor can decline this booking");
-        }
-        if (booking.getStatus() != BookingStatus.ESCROW_HELD
-                && booking.getStatus() != BookingStatus.ACCEPTED) {
-            throw new BadRequestException(
-                    "Only a paid, not-yet-taught booking can be declined (was " + booking.getStatus() + ")");
-        }
-
-        return refundEscrow(booking);
+        requireMentor(mentor, requireBooking(bookingId), "decline");
+        return refundEscrow(bookingId, PAID_NOT_TAUGHT);
     }
 
     // ── mark-taught (mentor) ─────────────────────────────────────────────────
 
     public BookingResponse markTaught(User mentor, String bookingId) {
-        Booking booking = requireBooking(bookingId);
-
-        if (!booking.getMentorId().toHexString().equals(mentor.getId())) {
-            throw new BadRequestException("Only the mentor can mark this session as taught");
-        }
-        // Allow marking taught from ESCROW_HELD (implicit accept) or ACCEPTED
-        if (booking.getStatus() != BookingStatus.ESCROW_HELD
-                && booking.getStatus() != BookingStatus.ACCEPTED) {
-            throw new BadRequestException(
-                    "Booking must be in escrow or accepted before it can be marked taught (was "
-                            + booking.getStatus() + ")");
-        }
-
-        booking.setStatus(BookingStatus.TAUGHT);
-        booking.setTaughtAt(Instant.now());
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        requireMentor(mentor, requireBooking(bookingId), "mark as taught");
+        // Allowed from ESCROW_HELD (implicit accept) or ACCEPTED
+        Booking updated = transitions.transitionOrFail(bookingId, PAID_NOT_TAUGHT,
+                BookingStatus.TAUGHT, new Update().set("taughtAt", Instant.now()));
+        return bookingMapper.toResponse(updated);
     }
 
     // ── confirm (mentee) → COMPLETED + release ───────────────────────────────
 
     public BookingResponse confirmAndRelease(User mentee, String bookingId) {
-        Booking booking = requireBooking(bookingId);
-
-        if (!booking.getMenteeId().toHexString().equals(mentee.getId())) {
-            throw new BadRequestException("Only the mentee can confirm this booking");
-        }
-        requireStatus(booking, BookingStatus.TAUGHT);
-
-        return releaseEscrow(booking);
+        requireMentee(mentee, requireBooking(bookingId), "confirm");
+        return releaseEscrow(bookingId, EnumSet.of(BookingStatus.TAUGHT));
     }
 
     // ── dispute (mentee) ─────────────────────────────────────────────────────
 
     public BookingResponse dispute(User mentee, String bookingId, String issueType, String reason) {
-        Booking booking = requireBooking(bookingId);
-
-        if (!booking.getMenteeId().toHexString().equals(mentee.getId())) {
-            throw new BadRequestException("Only the mentee can open a dispute");
-        }
+        requireMentee(mentee, requireBooking(bookingId), "open a dispute on");
         // A dispute can be raised on any paid session that isn't finished yet.
-        if (booking.getStatus() != BookingStatus.ESCROW_HELD
-                && booking.getStatus() != BookingStatus.ACCEPTED
-                && booking.getStatus() != BookingStatus.TAUGHT) {
-            throw new BadRequestException(
-                    "Only a paid, not-yet-completed session can be disputed (was " + booking.getStatus() + ")");
-        }
-
-        booking.setStatus(BookingStatus.DISPUTED);
-        booking.setDisputeIssueType(issueType);
-        booking.setDisputeReason(reason);
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        Booking updated = transitions.transitionOrFail(bookingId, DISPUTABLE, BookingStatus.DISPUTED,
+                new Update().set("disputeIssueType", issueType).set("disputeReason", reason));
+        return bookingMapper.toResponse(updated);
     }
 
     // ── resolve dispute (admin) ───────────────────────────────────────────────
 
     public BookingResponse resolveDispute(String bookingId, boolean releaseToMentor) {
-        Booking booking = requireBooking(bookingId);
-        requireStatus(booking, BookingStatus.DISPUTED);
-
-        return releaseToMentor ? releaseEscrow(booking) : refundEscrow(booking);
+        requireBooking(bookingId);
+        Set<BookingStatus> from = EnumSet.of(BookingStatus.DISPUTED);
+        return releaseToMentor ? releaseEscrow(bookingId, from) : refundEscrow(bookingId, from);
     }
 
     // ── auto-confirm (called by scheduler) ───────────────────────────────────
 
     public void autoConfirm(String bookingId) {
-        Booking booking = requireBooking(bookingId);
-        if (booking.getStatus() != BookingStatus.TAUGHT) return;
         try {
-            releaseEscrow(booking);
+            releaseEscrow(bookingId, EnumSet.of(BookingStatus.TAUGHT));
             log.info("Auto-confirmed booking {}", bookingId);
         } catch (Exception e) {
-            log.error("Auto-confirm failed for booking {}: {}", bookingId, e.getMessage());
+            // Usually means the mentee confirmed or disputed a moment earlier.
+            log.info("Auto-confirm skipped for booking {}: {}", bookingId, e.getMessage());
         }
     }
 
     // ── internals ────────────────────────────────────────────────────────────
 
-    private BookingResponse releaseEscrow(Booking booking) {
-        EscrowTransaction escrow = requireEscrow(booking.getId());
+    /** Booking -> COMPLETED and escrow HELD -> RELEASED, then pay the mentor. */
+    private BookingResponse releaseEscrow(String bookingId, Set<BookingStatus> from) {
+        Booking completed = transitions.transitionOrFail(bookingId, from, BookingStatus.COMPLETED, null);
 
-        escrow.setStatus(EscrowStatus.RELEASED);
-        escrow.setReleasedAt(Instant.now());
-        escrowRepository.save(escrow);
+        EscrowTransaction escrow = transitions.settleEscrow(bookingId, EscrowStatus.RELEASED);
+        if (escrow == null) {
+            log.error("Booking {} moved to COMPLETED but its escrow was not HELD — no payout made", bookingId);
+            throw new BadRequestException("Escrow for this booking has already been settled");
+        }
 
-        User mentor = requireUser(escrow.getMentorId().toHexString());
-        mentor.setWalletBalance(mentor.getWalletBalance() + escrow.getMentorPayout());
-        userRepository.save(mentor);
+        String mentorId = escrow.getMentorId().toHexString();
+        if (escrow.getMentorPayout() > 0) {
+            walletBalanceService.credit(mentorId, escrow.getMentorPayout());
+        }
+        recordWalletTxn(mentorId, TransactionType.PAYOUT, escrow.getMentorPayout(),
+                "Payout for booking " + bookingId, bookingId);
 
-        recordWalletTxn(mentor.getId(), TransactionType.PAYOUT, escrow.getMentorPayout(),
-                "Payout for booking " + booking.getId(), booking.getId());
-
-        booking.setStatus(BookingStatus.COMPLETED);
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        return bookingMapper.toResponse(completed);
     }
 
-    private BookingResponse refundEscrow(Booking booking) {
-        EscrowTransaction escrow = requireEscrow(booking.getId());
+    /** Booking -> REFUNDED and escrow HELD -> REFUNDED, then give the mentee their money back. */
+    private BookingResponse refundEscrow(String bookingId, Set<BookingStatus> from) {
+        Booking refunded = transitions.transitionOrFail(bookingId, from, BookingStatus.REFUNDED, null);
 
-        escrow.setStatus(EscrowStatus.REFUNDED);
-        escrow.setReleasedAt(Instant.now());
-        escrowRepository.save(escrow);
+        EscrowTransaction escrow = transitions.settleEscrow(bookingId, EscrowStatus.REFUNDED);
+        if (escrow == null) {
+            log.error("Booking {} moved to REFUNDED but its escrow was not HELD — no refund made", bookingId);
+            throw new BadRequestException("Escrow for this booking has already been settled");
+        }
 
-        User mentee = requireUser(escrow.getMenteeId().toHexString());
-        mentee.setWalletBalance(mentee.getWalletBalance() + escrow.getTotalAmount());
-        userRepository.save(mentee);
+        String menteeId = escrow.getMenteeId().toHexString();
+        if (escrow.getTotalAmount() > 0) {
+            walletBalanceService.credit(menteeId, escrow.getTotalAmount());
+        }
+        recordWalletTxn(menteeId, TransactionType.REFUND, escrow.getTotalAmount(),
+                "Refund for booking " + bookingId, bookingId);
 
-        recordWalletTxn(mentee.getId(), TransactionType.REFUND, escrow.getTotalAmount(),
-                "Refund for booking " + booking.getId(), booking.getId());
-
-        booking.setStatus(BookingStatus.REFUNDED);
-        return bookingMapper.toResponse(bookingRepository.save(booking));
+        return bookingMapper.toResponse(refunded);
     }
 
     private void recordWalletTxn(String userId, TransactionType type, long amount,
@@ -245,21 +226,15 @@ public class EscrowService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
     }
 
-    private EscrowTransaction requireEscrow(String bookingId) {
-        return escrowRepository.findByBookingId(new ObjectId(bookingId))
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Escrow not found for booking: " + bookingId));
+    private static void requireMentor(User user, Booking booking, String action) {
+        if (!booking.getMentorId().toHexString().equals(user.getId())) {
+            throw new BadRequestException("Only the mentor can " + action + " this booking");
+        }
     }
 
-    private User requireUser(String userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
-    }
-
-    private void requireStatus(Booking booking, BookingStatus expected) {
-        if (booking.getStatus() != expected) {
-            throw new BadRequestException(
-                    "Expected booking status " + expected + " but was " + booking.getStatus());
+    private static void requireMentee(User user, Booking booking, String action) {
+        if (!booking.getMenteeId().toHexString().equals(user.getId())) {
+            throw new BadRequestException("Only the mentee can " + action + " this booking");
         }
     }
 }

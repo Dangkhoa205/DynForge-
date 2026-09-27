@@ -77,10 +77,12 @@ export function TeacherSettings() {
             <Trash2 className="size-5" /> Danger zone
           </h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            Deleting your mentor account removes your profile, all sessions, and earnings history permanently.
+            {lang === 'vi'
+              ? 'Xoá tài khoản sẽ gỡ hồ sơ mentor của bạn vĩnh viễn. Hãy rút hết thu nhập và hoàn tất các buổi học đang diễn ra trước khi xoá.'
+              : 'Deleting your account permanently removes your mentor profile. Withdraw your earnings and finish open sessions first.'}
           </p>
-          <Button variant="destructive" onClick={() => toast.error('Account deletion requires email confirmation.')}>
-            Delete mentor account
+          <Button variant="destructive" onClick={() => navigate('/delete-account')}>
+            {lang === 'vi' ? 'Xoá tài khoản mentor' : 'Delete mentor account'}
           </Button>
         </Card>
       </div>

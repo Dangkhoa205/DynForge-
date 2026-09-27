@@ -1,0 +1,16 @@
+# Copy this file to application-local.properties (same folder) for local development.
+# application-local.properties is gitignored - put your real keys there, never in application.properties.
+
+# PowerShell to generate a JWT secret:
+#   $b = New-Object byte[] 64; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+app.jwt.secret=PASTE_BASE64_SECRET_HERE
+app.webhook.secret=any-long-random-string
+
+# Optional for local dev (leave empty to disable the feature)
+spring.mail.username=
+spring.mail.password=
+gemini.api-key=
+google.client-id=
+payos.client-id=
+payos.api-key=
+payos.checksum-key=

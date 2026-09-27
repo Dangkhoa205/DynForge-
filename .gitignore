@@ -71,3 +71,10 @@ logs/
 *~
 
 racetest/
+
+# Android build outputs
+*.apk
+*.aab
+
+# thu muc tam cua Claude (xoa duoc)
+.tmp-claude/

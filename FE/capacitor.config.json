@@ -1,0 +1,9 @@
+{
+  "appId": "vn.dynforge.app",
+  "appName": "DynForge",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "backgroundColor": "#050F1E"
+}

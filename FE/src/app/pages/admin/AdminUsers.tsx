@@ -122,7 +122,7 @@ export function AdminUsers() {
                         <TableCell className="text-muted-foreground">{u.email}</TableCell>
                         <TableCell><Badge className={`border ${roleColor[role]}`}>{role}</Badge></TableCell>
                         <TableCell className="text-muted-foreground">{u.major ?? '—'}</TableCell>
-                        <TableCell><StatusBadge status={u.status === 'ACTIVE' ? 'Active' : 'Suspended'} /></TableCell>
+                        <TableCell><StatusBadge status={u.status === 'ACTIVE' ? 'Active' : u.status === 'DELETED' ? 'Deleted' : 'Suspended'} /></TableCell>
                         <TableCell className="text-muted-foreground whitespace-nowrap">
                           {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </TableCell>
@@ -132,7 +132,7 @@ export function AdminUsers() {
                             size="sm"
                             className={u.status === 'SUSPENDED' ? 'text-success border-success/30' : 'text-danger border-danger/30'}
                             onClick={() => toggleStatus(u)}
-                            disabled={actingId === u.id || role === 'ADMIN'}
+                            disabled={actingId === u.id || role === 'ADMIN' || u.status === 'DELETED'}
                           >
                             {actingId === u.id
                               ? <Loader2 className="size-3.5 animate-spin" />

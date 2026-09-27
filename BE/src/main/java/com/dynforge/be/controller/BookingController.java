@@ -6,9 +6,11 @@ import com.dynforge.be.model.dto.BookingResponse;
 import com.dynforge.be.model.dto.DisputeRequest;
 import com.dynforge.be.model.dto.MentorEarningsResponse;
 import com.dynforge.be.model.dto.ResolveRequest;
+import com.dynforge.be.model.dto.TopUpResponse;
 import com.dynforge.be.security.UserPrincipal;
 import com.dynforge.be.service.BookingService;
 import com.dynforge.be.service.EscrowService;
+import com.dynforge.be.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +34,7 @@ public class BookingController {
 
     private final BookingService bookingService;
     private final EscrowService escrowService;
+    private final WalletService walletService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -70,6 +74,19 @@ public class BookingController {
             @PathVariable String id
     ) {
         return ApiResponse.ok("Payment held in escrow", escrowService.pay(principal.getUser(), id));
+    }
+
+    /**
+     * Pay for this one session through PayOS (exact price). Used by the Android app, which does not
+     * offer wallet top-ups. {@code app=true} makes PayOS send the buyer back into the app.
+     */
+    @PostMapping("/{id}/checkout")
+    public ApiResponse<TopUpResponse> checkout(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String id,
+            @RequestParam(defaultValue = "false") boolean app
+    ) {
+        return ApiResponse.ok("Checkout created", walletService.createBookingCheckout(principal.getUser(), id, app));
     }
 
     @PatchMapping("/{id}/cancel")

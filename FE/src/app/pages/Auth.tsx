@@ -17,6 +17,7 @@ import { useAuth, AuthRole } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useUniversity } from '../context/UniversityContext';
 import { toast } from 'sonner';
+import { isNativeApp } from '../lib/platform';
 
 import Lottie from 'lottie-react';
 import onlineLearningAnimation from '../../assets/animations/Online Learning.json';
@@ -190,11 +191,16 @@ export function Login() {
       </h1>
       <p className="text-xs text-slate-400 mb-6">{T.loginSubtitle}</p>
 
-      <div className="mb-5"><GoogleButton /></div>
+      {/* Google blocks OAuth inside Android WebViews, so the app build uses email login only. */}
+      {!isNativeApp() && (
+        <>
+          <div className="mb-5"><GoogleButton /></div>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
-        <span className="h-px flex-1 bg-white/10" /> {T.orSignIn} <span className="h-px flex-1 bg-white/10" />
-      </div>
+          <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
+            <span className="h-px flex-1 bg-white/10" /> {T.orSignIn} <span className="h-px flex-1 bg-white/10" />
+          </div>
+        </>
+      )}
 
       <form className="space-y-4" onSubmit={submit}>
         <div>
@@ -306,11 +312,15 @@ export function Register() {
         </button>
       </div>
 
-      <div className="mb-5"><GoogleButton /></div>
+      {!isNativeApp() && (
+        <>
+          <div className="mb-5"><GoogleButton /></div>
 
-      <div className="my-4 flex items-center gap-3 text-xs text-slate-500">
-        <span className="h-px flex-1 bg-white/10" /> {T.orRegisterWithEmail} <span className="h-px flex-1 bg-white/10" />
-      </div>
+          <div className="my-4 flex items-center gap-3 text-xs text-slate-500">
+            <span className="h-px flex-1 bg-white/10" /> {T.orRegisterWithEmail} <span className="h-px flex-1 bg-white/10" />
+          </div>
+        </>
+      )}
 
       <form className="space-y-3.5" onSubmit={submit}>
         <div>

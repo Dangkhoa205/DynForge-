@@ -410,6 +410,11 @@ export function Footer() {
           </div>
           <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-slate-800/80 pt-6 text-sm text-slate-400 sm:flex-row">
             <span>{T.copyright}</span>
+            <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              <Link to="/privacy" className="hover:text-cyan-300">{lang === 'vi' ? 'Chính sách bảo mật' : 'Privacy'}</Link>
+              <Link to="/terms" className="hover:text-cyan-300">{lang === 'vi' ? 'Điều khoản' : 'Terms'}</Link>
+              <Link to="/delete-account" className="hover:text-cyan-300">{lang === 'vi' ? 'Xoá tài khoản' : 'Delete account'}</Link>
+            </span>
             <span>{T.paymentsSecured}</span>
           </div>
         </div>

@@ -20,7 +20,7 @@ export async function getWallet(): Promise<WalletResponse> {
   return data.data as WalletResponse;
 }
 
-export async function topUp(amount: number): Promise<{ txnId: string; amount: number; paymentUrl: string }> {
+export async function topUp(amount: number): Promise<{ txnId: string; amount: number; paymentUrl: string; orderCode: number }> {
   const { data } = await api.post('/api/wallet/topup', { amount });
   return data.data;
 }

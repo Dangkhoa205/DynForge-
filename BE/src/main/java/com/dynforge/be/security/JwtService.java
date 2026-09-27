@@ -19,7 +19,18 @@ public class JwtService {
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-ms}") long expirationMs
     ) {
-        this.signingKey = Keys.hmacShaKeyFor(java.util.Base64.getDecoder().decode(secret));
+        byte[] keyBytes;
+        try {
+            keyBytes = java.util.Base64.getDecoder().decode(secret == null ? "" : secret.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException(
+                    "JWT_SECRET khong phai chuoi Base64 hop le. Tao lai bang lenh PowerShell trong application-local.properties.example", e);
+        }
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET qua ngan (" + keyBytes.length + " byte). Can Base64 cua it nhat 32 byte ngau nhien.");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
     }
 
