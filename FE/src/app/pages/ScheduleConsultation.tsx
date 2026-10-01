@@ -101,6 +101,15 @@ export function ScheduleConsultation() {
   const firstWeekday = new Date(base.getFullYear(), base.getMonth(), 1).getDay();
   const todayDay = monthOffset === 0 ? now.getDate() : 0;
 
+  // A slot that already started (or starts within 15 minutes) cannot be booked: the backend requires a future start time.
+  const isSlotPast = (slot: string) => {
+    if (monthOffset !== 0 || selectedDay !== now.getDate()) return false;
+    const [h, m] = slot.split(':').map(Number);
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    return start.getTime() - now.getTime() < 15 * 60 * 1000;
+  };
+  const slotUnavailable = !!selectedSlot && isSlotPast(selectedSlot);
+
   const chosenCourse = mentor.courses?.find((c) => c.code.toLowerCase() === (selectedCourse || '').toLowerCase());
   const courseHourlyRate = chosenCourse?.ratePrivate ?? mentor.hourlyRate;
   const courseGroupRate = chosenCourse?.rateGroup ?? mentor.groupRate;
@@ -280,7 +289,7 @@ export function ScheduleConsultation() {
 
                   <Button
                     onClick={cont}
-                    disabled={!selectedDay || !selectedSlot}
+                    disabled={!selectedDay || !selectedSlot || slotUnavailable}
                     className="w-full py-3 h-12 text-sm font-semibold rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 disabled:opacity-40 transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
                   >
                     {T.continueToOrder}
@@ -457,16 +466,20 @@ export function ScheduleConsultation() {
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {timeSlots.map((slot) => {
-                    const selected = selectedSlot === slot;
+                    const past = isSlotPast(slot);
+                    const selected = selectedSlot === slot && !past;
                     return (
                       <button
                         key={slot}
+                        disabled={past}
                         onClick={() => setSelectedSlot(slot)}
                         className={cn(
-                          'rounded-xl border py-3 text-sm font-medium transition-all cursor-pointer text-center',
-                          selected
-                            ? 'border-cyan-400 bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.35)] font-semibold scale-[1.02]'
-                            : 'border-white/10 bg-white/5 text-slate-300 hover:border-cyan-400/40 hover:bg-white/10'
+                          'rounded-xl border py-3 text-sm font-medium transition-all text-center',
+                          past
+                            ? 'border-white/[0.03] bg-white/[0.02] text-slate-600 line-through cursor-not-allowed'
+                            : selected
+                            ? 'border-cyan-400 bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.35)] font-semibold scale-[1.02] cursor-pointer'
+                            : 'border-white/10 bg-white/5 text-slate-300 hover:border-cyan-400/40 hover:bg-white/10 cursor-pointer'
                         )}
                       >
                         {slot}
@@ -488,7 +501,7 @@ export function ScheduleConsultation() {
               </Link>
               <Button
                 onClick={cont}
-                disabled={!selectedDay || !selectedSlot}
+                disabled={!selectedDay || !selectedSlot || slotUnavailable}
                 className="py-2.5 px-6 text-sm font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 disabled:opacity-40 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 {T.continueToOrder}

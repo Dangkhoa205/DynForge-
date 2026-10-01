@@ -181,11 +181,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     const refreshToken = localStorage.getItem('dynforge_refresh_token') || localStorage.getItem('gradora_refresh_token');
-    if (refreshToken) {
-      try { await logoutApi(refreshToken); } catch { /* ignore — still clear locally */ }
-    }
+    // Sign out locally first so the button responds at once, then revoke the refresh token in the
+    // background: the backend (Render free tier) can take up to a minute to wake up.
     clearTokens();
     setUser(null);
+    if (refreshToken) {
+      logoutApi(refreshToken).catch(() => { /* ignore — already signed out locally */ });
+    }
   };
 
   // Re-fetch the current user (e.g. after a profile update) and refresh header/avatar.

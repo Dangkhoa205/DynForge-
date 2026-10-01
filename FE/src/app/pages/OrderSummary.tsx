@@ -588,6 +588,17 @@ export function OrderSummary() {
     setVoucherError('');
   };
 
+  // The backend rejects a start time in the past with a generic validation error, so check it here first.
+  const slotAlreadyStarted = () => {
+    const [h, m] = state.slot.split(':').map(Number);
+    const start = new Date(state.year ?? now.getFullYear(), state.month ?? now.getMonth(), state.day, h, m);
+    if (start.getTime() > Date.now() + 60 * 1000) return false;
+    toast.error(lang === 'vi'
+      ? 'Khung giờ này đã qua. Vui lòng quay lại chọn ngày hoặc giờ khác.'
+      : 'This time slot has already passed. Please go back and pick another date or time.');
+    return true;
+  };
+
   // Android app: create the booking (once) and pay exactly this session through PayOS.
   const payWithPayos = async () => {
     if (!(user?.id && state.mentorId && state.courseCode && isObjectId(state.mentorId))) {
@@ -596,6 +607,7 @@ export function OrderSummary() {
         : 'Please pick a mentor from the live directory to book a real session.');
       return;
     }
+    if (!pendingBookingId && slotAlreadyStarted()) return;
     setPaying(true);
     try {
       let bookingId = pendingBookingId;
@@ -636,6 +648,7 @@ export function OrderSummary() {
   };
 
   const confirm = async () => {
+    if (!pendingBookingId && slotAlreadyStarted()) return;
     if (native && (walletBalance === null || walletBalance < total)) {
       await payWithPayos();
       return;
