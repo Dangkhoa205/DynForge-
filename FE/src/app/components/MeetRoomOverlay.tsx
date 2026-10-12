@@ -178,6 +178,13 @@ export function MeetRoomOverlay({ bookingId, roomId, course, partnerName, durati
   const jitsiUrl = `https://meet.jit.si/${room}#userInfo.displayName=%22${name}%22&config.prejoinPageEnabled=false&config.disableDeepLinking=true`;
 
   const startRecording = async () => {
+    // getDisplayMedia is desktop-only; Android WebView/Chrome do not provide it.
+    if (!(navigator.mediaDevices as any)?.getDisplayMedia) {
+      toast.info(vi
+        ? 'Chỉ ghi được buổi học trên trình duyệt máy tính. Hãy mở DynForge trên máy tính để ghi lại buổi học.'
+        : 'Screen recording is only available on a desktop browser. Open DynForge on a computer to record this session.');
+      return;
+    }
     try {
       // Capture the screen/tab (the meeting) + audio.
       const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });

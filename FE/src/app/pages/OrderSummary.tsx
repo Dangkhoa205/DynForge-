@@ -21,10 +21,14 @@ import { EditorialPageHeader } from '../components/EditorialPageHeader';
 import { GsapTypewriter } from '../components/GsapTypewriter';
 import { MouseFollowLight } from '../components/MouseFollowLight';
 import { GsapCounter } from '../components/GsapCounter';
-import { createBooking, payBooking } from '../services/bookingService';
+import { createBooking, payBooking, getBookingById } from '../services/bookingService';
 import { isObjectId, getMentorById, backendToMentor } from '../services/mentorService';
 import { getWallet, topUp, confirmPayos } from '../services/walletService';
 import { toast } from 'sonner';
+import { isNativeApp } from '../lib/platform';
+import {
+  createBookingCheckout, savePendingPayment, clearPendingPayment, waitForPayment, type PendingPayment,
+} from '../services/paymentService';
 
 interface BookingState {
   duration: number;
@@ -406,6 +410,43 @@ export function OrderSummary() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
 
+  // Android app: every 1:1 session is paid on its own through PayOS (no wallet top-ups in the app,
+  // see Google Play payments policy). `awaiting` = checkout opened in the browser, waiting for PayOS.
+  const native = isNativeApp();
+  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+  const [awaiting, setAwaiting] = useState<(PendingPayment & { paymentUrl: string }) | null>(null);
+
+  useEffect(() => {
+    if (!awaiting) return;
+    const ctrl = new AbortController();
+    waitForPayment(awaiting.orderCode, { signal: ctrl.signal }).then(async (txn) => {
+      if (ctrl.signal.aborted || !txn) return;
+      if (txn.status !== 'COMPLETED') {
+        setAwaiting(null);
+        toast.error(lang === 'vi' ? 'Thanh toán chưa thành công hoặc đã bị huỷ.' : 'The payment was not completed.');
+        return;
+      }
+      clearPendingPayment();
+      try {
+        const b = await getBookingById(awaiting.bookingId);
+        if (b.status === 'PENDING_PAYMENT' || b.status === 'CANCELLED') {
+          toast.info(lang === 'vi'
+            ? 'Đã nhận tiền nhưng buổi học không còn chờ thanh toán — số tiền đã được cộng vào ví của bạn.'
+            : 'Payment received, but the session is no longer awaiting payment — the amount was added to your wallet.');
+          navigate('/dashboard/wallet');
+          return;
+        }
+      } catch { /* still show the escrow page */ }
+      navigate('/escrow', {
+        state: {
+          mentor: awaiting.mentor, amount: awaiting.amount, day: awaiting.day, month: awaiting.month,
+          year: awaiting.year, slot: awaiting.slot, duration: awaiting.duration, bookingId: awaiting.bookingId,
+        },
+      });
+    });
+    return () => ctrl.abort();
+  }, [awaiting, navigate, lang]);
+
   useEffect(() => {
     if (!id || !isObjectId(id)) return;
     getMentorById(id)
@@ -556,6 +597,53 @@ export function OrderSummary() {
     setVoucherError('');
   };
 
+  // Android app: create the booking (once) and pay exactly this session through PayOS.
+  const payWithPayos = async () => {
+    if (!(user?.id && state.mentorId && state.courseCode && isObjectId(state.mentorId))) {
+      toast.error(lang === 'vi'
+        ? 'Vui lòng chọn mentor trong danh sách để đặt buổi học thật.'
+        : 'Please pick a mentor from the live directory to book a real session.');
+      return;
+    }
+    setPaying(true);
+    try {
+      let bookingId = pendingBookingId;
+      if (!bookingId) {
+        const yr = state.year ?? now.getFullYear();
+        const mo = state.month ?? now.getMonth();
+        const [h, m] = state.slot.split(':').map(Number);
+        const booking = await createBooking({
+          mentorId: state.mentorId,
+          courseCode: state.courseCode,
+          format: state.bookingFormat ?? 'ONE_ON_ONE',
+          startAt: new Date(yr, mo, state.day, h, m).toISOString(),
+          durationMin: state.duration,
+        });
+        bookingId = booking.id;
+        setPendingBookingId(bookingId);
+      }
+      const checkout = await createBookingCheckout(bookingId, true);
+      const pending: PendingPayment = {
+        orderCode: checkout.orderCode,
+        bookingId,
+        mentor: mentor.name,
+        amount: checkout.amount,
+        day: state.day,
+        month: state.month,
+        year: state.year,
+        slot: state.slot,
+        duration: state.duration,
+      };
+      savePendingPayment(pending);
+      setAwaiting({ ...pending, paymentUrl: checkout.paymentUrl });
+      window.open(checkout.paymentUrl, '_blank');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? (lang === 'vi' ? 'Không tạo được thanh toán PayOS.' : 'Could not start the PayOS payment.'));
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const confirm = async () => {
     if (isSelfBooking) {
       toast.error(
@@ -576,6 +664,12 @@ export function OrderSummary() {
         toast.error(T.slotPassed);
         return;
       }
+    }
+
+    // Android app: not enough in the wallet -> pay this one session with PayOS instead of topping up.
+    if (native && (walletBalance === null || walletBalance < total)) {
+      await payWithPayos();
+      return;
     }
 
     // If balance is already known to be insufficient, guide user directly to top-up
@@ -635,6 +729,10 @@ export function OrderSummary() {
           errMsg.toLowerCase().includes('không đủ')
         ) {
           setWalletBalance(0);
+          if (native) {
+            await payWithPayos();
+            return;
+          }
           setShowTopUpModal(true);
           toast.error(
             lang === 'vi'
@@ -770,7 +868,8 @@ export function OrderSummary() {
               </div>
             </Card>
 
-            {/* Voucher input */}
+            {/* Voucher input — hidden in the Android app: codes are not applied to the charged price yet */}
+            {!native && (
             <Card className="border border-white/10 bg-[#090f1e]/90 backdrop-blur-xl p-4 sm:p-6 text-slate-100 shadow-2xl rounded-2xl">
               <h2 className="mb-2 text-xl font-bold text-white tracking-tight">
                 Apply Voucher
@@ -802,6 +901,7 @@ export function OrderSummary() {
               )}
               {voucherError && <p className="mt-2 text-xs text-rose-400 font-medium">{voucherError}</p>}
             </Card>
+            )}
           </div>
 
           {/* Pricing Sidebar */}
@@ -883,6 +983,7 @@ export function OrderSummary() {
                             <>Short by: <strong className="text-white font-bold">{formatCurrency(shortfall)}</strong></>
                           )}
                         </span>
+                        {!native && (
                         <button
                           type="button"
                           onClick={() => setShowTopUpModal(true)}
@@ -891,6 +992,7 @@ export function OrderSummary() {
                           <Zap className="size-3 fill-amber-400" />
                           {lang === 'vi' ? 'Nạp ngay' : 'Top up now'}
                         </button>
+                        )}
                       </>
                     ) : (
                       <span className="text-emerald-300 font-medium flex items-center gap-1.5">
@@ -923,7 +1025,29 @@ export function OrderSummary() {
 
               {/* CTA Action Buttons */}
               <div className="mt-6 space-y-3">
-                {isInsufficient && (
+                {awaiting && (
+                  <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3.5 text-sm text-cyan-100 space-y-2">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <Loader2 className="size-4 animate-spin" />
+                      {lang === 'vi' ? 'Đang chờ PayOS xác nhận…' : 'Waiting for PayOS…'}
+                    </p>
+                    <p className="text-xs text-cyan-200/80">
+                      {lang === 'vi'
+                        ? 'Hoàn tất thanh toán trong trình duyệt rồi quay lại ứng dụng. Màn hình sẽ tự chuyển khi thanh toán xong.'
+                        : 'Finish paying in the browser, then come back to the app. This screen moves on by itself once paid.'}
+                    </p>
+                    <div className="flex gap-3 text-xs">
+                      <button type="button" className="underline" onClick={() => window.open(awaiting.paymentUrl, '_blank')}>
+                        {lang === 'vi' ? 'Mở lại trang thanh toán' : 'Reopen payment page'}
+                      </button>
+                      <button type="button" className="underline text-slate-300" onClick={() => setAwaiting(null)}>
+                        {lang === 'vi' ? 'Huỷ chờ' : 'Stop waiting'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isInsufficient && !native && (
                   <Button
                     type="button"
                     onClick={() => setShowTopUpModal(true)}
@@ -936,12 +1060,12 @@ export function OrderSummary() {
 
                 <Button
                   onClick={confirm}
-                  disabled={paying || isSelfBooking}
+                  disabled={paying || isSelfBooking || !!awaiting}
                   className={cn(
                     "w-full h-12 font-semibold rounded-xl text-base transition-all",
                     isSelfBooking
                       ? "border border-amber-500/30 bg-amber-500/10 text-amber-300 cursor-not-allowed opacity-60"
-                      : isInsufficient
+                      : isInsufficient && !native
                       ? "border border-cyan-500/30 bg-cyan-950/30 hover:bg-cyan-900/40 text-cyan-300"
                       : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-xl shadow-cyan-500/25 hover:scale-[1.01] active:scale-[0.99]"
                   )}
@@ -950,6 +1074,11 @@ export function OrderSummary() {
                     <><Loader2 className="size-5 animate-spin mr-2" /> Processing Payment…</>
                   ) : isSelfBooking ? (
                     (lang === 'vi' ? 'Không thể tự thanh toán' : 'Cannot Book Yourself')
+                  ) : native && (walletBalance === null || walletBalance < total) ? (
+                    <span className="flex items-center gap-2">
+                      <Building2 className="size-4" />
+                      {lang === 'vi' ? `Thanh toán ${formatCurrency(total)} qua PayOS` : `Pay ${formatCurrency(total)} with PayOS`}
+                    </span>
                   ) : isInsufficient ? (
                     <span className="flex items-center gap-2 text-sm text-slate-300">
                       {lang === 'vi' ? 'Cần nạp thêm tiền để thanh toán Escrow' : 'Top up required to Pay via Escrow'}
@@ -972,7 +1101,7 @@ export function OrderSummary() {
 
       {/* Quick Top-Up Dialog */}
       <OrderTopUpModal
-        open={showTopUpModal}
+        open={showTopUpModal && !native}
         onClose={() => setShowTopUpModal(false)}
         requiredAmount={total}
         currentBalance={walletBalance ?? 0}

@@ -1,5 +1,6 @@
 package com.dynforge.be.service;
 
+import com.dynforge.be.exception.BadRequestException;
 import com.dynforge.be.exception.ResourceNotFoundException;
 import com.dynforge.be.mapper.UserMapper;
 import com.dynforge.be.model.dto.AdminDashboardResponse;
@@ -82,6 +83,9 @@ public class AdminService {
     public UserResponse updateUserStatus(String userId, UserStatus status) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        if (user.getStatus() == UserStatus.DELETED || status == UserStatus.DELETED) {
+            throw new BadRequestException("Deleted accounts cannot be changed from the admin panel");
+        }
         user.setStatus(status);
         return userMapper.toResponse(userRepository.save(user));
     }

@@ -79,9 +79,9 @@ export function TeacherSettings() {
             <Trash2 className="size-5" /> {vi ? 'Vùng nguy hiểm' : 'Danger zone'}
           </h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            {vi ? 'Xoá tài khoản mentor sẽ xoá vĩnh viễn hồ sơ, toàn bộ buổi học và lịch sử thu nhập của bạn.' : 'Deleting your mentor account removes your profile, all sessions, and earnings history permanently.'}
+            {vi ? 'Xoá tài khoản sẽ gỡ hồ sơ mentor của bạn vĩnh viễn. Hãy rút hết thu nhập và hoàn tất các buổi học đang diễn ra trước khi xoá.' : 'Deleting your account permanently removes your mentor profile. Withdraw your earnings and finish open sessions first.'}
           </p>
-          <Button variant="destructive" onClick={() => toast.error(vi ? 'Xoá tài khoản cần xác nhận qua email.' : 'Account deletion requires email confirmation.')}>
+          <Button variant="destructive" onClick={() => navigate('/delete-account')}>
             {vi ? 'Xoá tài khoản mentor' : 'Delete mentor account'}
           </Button>
         </Card>

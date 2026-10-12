@@ -128,12 +128,12 @@ export function DashboardSettings() {
           </h2>
           <p className="mb-4 text-sm text-muted-foreground">
             {vi
-              ? 'Xoá tài khoản là vĩnh viễn và không thể hoàn tác. Toàn bộ dữ liệu gồm lịch sử buổi học, số dư ví và tranh chấp sẽ bị xoá vĩnh viễn.'
-              : 'Deleting your account is permanent and cannot be undone. All data including session history, wallet balance, and disputes will be permanently removed.'}
+              ? 'Xoá tài khoản là vĩnh viễn. Hãy rút hết số dư ví và hoàn tất các buổi học đã thanh toán trước khi xoá.'
+              : 'Deleting your account is permanent. Withdraw your wallet balance and finish any paid sessions first.'}
           </p>
           <Button
             variant="destructive"
-            onClick={() => toast.error(vi ? 'Xoá tài khoản cần xác nhận qua email. Tính năng sắp ra mắt.' : 'Account deletion requires email confirmation. Feature coming soon.')}
+            onClick={() => navigate('/delete-account')}
           >
             {vi ? 'Xoá tài khoản của tôi' : 'Delete my account'}
           </Button>

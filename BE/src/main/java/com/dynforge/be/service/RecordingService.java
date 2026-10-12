@@ -89,6 +89,23 @@ public class RecordingService {
         return new LoadedFile(rec, resource);
     }
 
+    /**
+     * Deletes every recording (file + metadata) of a booking. Used when a participant deletes their
+     * account. Returns how many recordings were removed.
+     */
+    public int deleteForBooking(String bookingId) {
+        List<Recording> recs = recordingRepository.findByBookingIdOrderByCreatedAtDesc(new ObjectId(bookingId));
+        for (Recording rec : recs) {
+            try {
+                Files.deleteIfExists(Paths.get(recordingsDir).resolve(rec.getFilename()));
+            } catch (IOException e) {
+                // Metadata is still removed; an orphan file without metadata is unreachable via the API.
+            }
+            recordingRepository.delete(rec);
+        }
+        return recs.size();
+    }
+
     private RecordingResponse toResponse(Recording r) {
         return new RecordingResponse(
                 r.getId(),

@@ -8,13 +8,17 @@ import com.dynforge.be.model.dto.TransactionResponse;
 import com.dynforge.be.model.dto.WalletResponse;
 import com.dynforge.be.model.dto.WebhookRequest;
 import com.dynforge.be.model.dto.WithdrawRequest;
+import com.dynforge.be.model.entity.Booking;
 import com.dynforge.be.model.entity.User;
 import com.dynforge.be.model.entity.WalletTransaction;
+import com.dynforge.be.model.enums.BookingStatus;
 import com.dynforge.be.model.enums.TransactionStatus;
 import com.dynforge.be.model.enums.TransactionType;
+import com.dynforge.be.repository.BookingRepository;
 import com.dynforge.be.repository.UserRepository;
 import com.dynforge.be.repository.WalletTransactionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
@@ -24,9 +28,13 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WalletService {
@@ -35,6 +43,8 @@ public class WalletService {
     private final UserRepository userRepository;
     private final PayOsClient payOsClient;
     private final MongoTemplate mongoTemplate;
+    private final BookingRepository bookingRepository;
+    private final EscrowService escrowService;
 
     @Value("${app.frontend.base-url:http://localhost:5173}")
     private String frontendBaseUrl;
@@ -51,8 +61,7 @@ public class WalletService {
     }
 
     public TopUpResponse topUp(User user, TopUpRequest request) {
-        // PayOS orderCode must be a unique positive number; millis works well and fits in a long.
-        long orderCode = System.currentTimeMillis();
+        long orderCode = newOrderCode();
 
         WalletTransaction txn = WalletTransaction.builder()
                 .userId(new ObjectId(user.getId()))
@@ -72,7 +81,46 @@ public class WalletService {
         String checkoutUrl = payOsClient.createPaymentLink(
                 orderCode, request.amount(), "Nap vi DynForge", returnUrl, cancelUrl);
 
-        return new TopUpResponse(txn.getId(), request.amount(), checkoutUrl);
+        return new TopUpResponse(txn.getId(), request.amount(), checkoutUrl, orderCode);
+    }
+
+    /**
+     * Pays for ONE specific session through PayOS (exact booking price, no stored balance).
+     * Used by the Android app: it does not sell wallet top-ups, only 1:1 live sessions, which
+     * Google Play allows to be paid outside Play Billing. Once PayOS confirms the payment the
+     * money goes straight into escrow for that booking (see {@link #payLinkedBooking}).
+     */
+    public TopUpResponse createBookingCheckout(User user, String bookingId, boolean fromApp) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+        if (!booking.getMenteeId().toHexString().equals(user.getId())) {
+            throw new BadRequestException("Only the mentee can pay for this booking");
+        }
+        if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
+            throw new BadRequestException("Buổi học này không còn chờ thanh toán (trạng thái " + booking.getStatus() + ").");
+        }
+
+        long amount = booking.getPrice();
+        long orderCode = newOrderCode();
+
+        WalletTransaction txn = txnRepository.save(WalletTransaction.builder()
+                .userId(new ObjectId(user.getId()))
+                .type(TransactionType.TOPUP)
+                .status(TransactionStatus.PENDING)
+                .amount(amount)
+                .description("PayOS payment for booking " + bookingId)
+                .externalRef(String.valueOf(orderCode))
+                .relatedBookingId(bookingId)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build());
+
+        // /payment-return is a public web page; with app=1 it sends the buyer back into the Android app.
+        String returnUrl = frontendBaseUrl + "/payment-return?bookingId="
+                + URLEncoder.encode(bookingId, StandardCharsets.UTF_8) + (fromApp ? "&app=1" : "");
+        String checkoutUrl = payOsClient.createPaymentLink(orderCode, amount, "DynForge", returnUrl, returnUrl);
+
+        return new TopUpResponse(txn.getId(), amount, checkoutUrl, orderCode);
     }
 
     /**
@@ -94,14 +142,18 @@ public class WalletService {
 
         String status = payOsClient.getPaymentStatus(orderCode);
         if ("PAID".equals(status)) {
-            txn.setStatus(TransactionStatus.COMPLETED);
-            txn.setUpdatedAt(Instant.now());
-            txnRepository.save(txn);
-            creditWallet(txn.getUserId(), txn.getAmount());
-        } else if ("CANCELLED".equals(status) || "EXPIRED".equals(status)) {
-            txn.setStatus(TransactionStatus.FAILED);
-            txn.setUpdatedAt(Instant.now());
-            txnRepository.save(txn);
+            // Atomic PENDING -> COMPLETED so the web tab and the app confirming at once credit only once.
+            WalletTransaction completed = finalizePending(txn.getExternalRef(), TransactionStatus.COMPLETED);
+            if (completed == null) {
+                return toResponse(txnRepository.findById(txn.getId()).orElse(txn));
+            }
+            creditWallet(completed.getUserId(), completed.getAmount());
+            payLinkedBooking(completed);
+            return toResponse(completed);
+        }
+        if ("CANCELLED".equals(status) || "EXPIRED".equals(status)) {
+            WalletTransaction failed = finalizePending(txn.getExternalRef(), TransactionStatus.FAILED);
+            return toResponse(failed != null ? failed : txn);
         }
         // PENDING/PROCESSING → leave as-is; the buyer can retry confirmation.
         return toResponse(txn);
@@ -145,21 +197,52 @@ public class WalletService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Unknown transaction reference: " + body.txnRef()));
 
-        // Idempotency: already finalized — return current state
-        if (txn.getStatus() != TransactionStatus.PENDING) {
-            return toResponse(txn);
-        }
-
         boolean success = body.status() == WebhookRequest.WebhookStatus.SUCCESS;
-        txn.setStatus(success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED);
-        txn.setUpdatedAt(Instant.now());
-        txnRepository.save(txn);
+        WalletTransaction finalized = finalizePending(body.txnRef(),
+                success ? TransactionStatus.COMPLETED : TransactionStatus.FAILED);
+        if (finalized == null) {
+            // Idempotency: already finalized — return current state
+            return toResponse(txnRepository.findById(txn.getId()).orElse(txn));
+        }
 
         if (success) {
-            creditWallet(txn.getUserId(), txn.getAmount());
+            creditWallet(finalized.getUserId(), finalized.getAmount());
+            payLinkedBooking(finalized);
         }
 
-        return toResponse(txn);
+        return toResponse(finalized);
+    }
+
+    /** PENDING -> {@code outcome} in one atomic write. Returns null if it was not PENDING anymore. */
+    private WalletTransaction finalizePending(String externalRef, TransactionStatus outcome) {
+        Query query = Query.query(Criteria.where("externalRef").is(externalRef)
+                .and("status").is(TransactionStatus.PENDING));
+        Update update = new Update().set("status", outcome).set("updatedAt", Instant.now());
+        return mongoTemplate.findAndModify(query, update, FindAndModifyOptions.options().returnNew(true),
+                WalletTransaction.class);
+    }
+
+    /** For per-session checkouts: move the just-credited money into the booking's escrow. */
+    private void payLinkedBooking(WalletTransaction txn) {
+        String bookingId = txn.getRelatedBookingId();
+        if (bookingId == null || bookingId.isBlank()) {
+            return;
+        }
+        try {
+            // Reload the user so EscrowService sees the balance that was just credited.
+            User fresh = userRepository.findById(txn.getUserId().toHexString())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + txn.getUserId()));
+            escrowService.pay(fresh, bookingId);
+        } catch (Exception e) {
+            // e.g. the booking was cancelled meanwhile — the money simply stays in the wallet.
+            log.warn("Paid order {} but could not move it into booking {}: {}",
+                    txn.getExternalRef(), bookingId, e.getMessage());
+        }
+    }
+
+    /** Unique, positive, fits PayOS's limit (<= 9007199254740991). */
+    private static long newOrderCode() {
+        return System.currentTimeMillis() * 1000 + ThreadLocalRandom.current().nextInt(1000);
     }
 
     private void creditWallet(ObjectId userId, long amount) {

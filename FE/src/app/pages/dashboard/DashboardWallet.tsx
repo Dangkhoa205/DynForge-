@@ -25,6 +25,7 @@ import { cn } from '../../components/ui/utils';
 import { toast } from 'sonner';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDate } from '../../lib/format';
+import { isNativeApp } from '../../lib/platform';
 
 // ── Add Funds modal (PayOS) ──────────────
 function AddFundsModal({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () => void }) {
@@ -312,12 +313,15 @@ export function DashboardWallet() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Android app: no wallet top-ups (Google Play payments policy) — sessions are paid one by one. */}
+          {!isNativeApp() && (
           <Button
             onClick={() => setShowAddFunds(true)}
             className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-blue-500 transition-all gap-1.5"
           >
             <Plus className="size-4" /> Nạp tiền ví
           </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => setShowWithdraw(true)}
@@ -377,6 +381,15 @@ export function DashboardWallet() {
 
         {/* Quick Top-up Hub (7 cols) */}
         <div className="lg:col-span-7 rounded-3xl border border-slate-800/80 bg-slate-950/60 p-6 sm:p-7 backdrop-blur-xl shadow-xl flex flex-col justify-between">
+          {isNativeApp() ? (
+            <div className="text-sm text-slate-300 leading-relaxed">
+              <h3 className="text-base font-bold text-white flex items-center gap-2 mb-2">
+                <Sparkles className="size-4 text-cyan-400" />
+                Thanh toán từng buổi học
+              </h3>
+              Trên ứng dụng, mỗi buổi học được thanh toán riêng qua PayOS khi bạn đặt lịch. Số dư ví (nếu có) vẫn được dùng để thanh toán và có thể rút về ngân hàng.
+            </div>
+          ) : (
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div>
@@ -408,6 +421,7 @@ export function DashboardWallet() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Escrow Guarantee Highlight */}
           <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 flex items-start gap-3">
@@ -560,7 +574,7 @@ export function DashboardWallet() {
         )}
       </div>
 
-      {showAddFunds && <AddFundsModal onClose={() => setShowAddFunds(false)} onSuccess={fetchWallet} />}
+      {showAddFunds && !isNativeApp() && <AddFundsModal onClose={() => setShowAddFunds(false)} onSuccess={fetchWallet} />}
       {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} balance={balance} />}
     </div>
   );

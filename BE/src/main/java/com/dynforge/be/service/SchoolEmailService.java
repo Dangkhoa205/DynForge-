@@ -60,22 +60,28 @@ public class SchoolEmailService {
     @Value("${app.otp.secret:dynforge-otp-secret-key-32-chars-minimum}")
     private String otpSecret;
 
-    public void requestVerification(User user, String schoolEmail) {
+    public void requestVerification(User user, String schoolEmail, String universityCode) {
         if (schoolEmail == null || schoolEmail.isBlank()) {
-            throw new BadRequestException("Vui lòng nhập email trường.");
+            throw new BadRequestException("Vui lòng nhập email.");
         }
         String email = schoolEmail.trim();
         String domain = extractDomain(email);
 
+        // Any email is accepted: the university comes from a known school domain, otherwise from the
+        // university picked in the form, otherwise from the user's profile.
         University university = universityRepository.findByEmailDomainsContaining(domain)
-                .orElseThrow(() -> new BadRequestException(
-                        "Email domain chưa thuộc trường nào trên DynForge. "
-                        + "Vui lòng dùng email trường hoặc gửi minh chứng cựu sinh viên."));
+                .or(() -> (universityCode == null || universityCode.isBlank())
+                        ? Optional.empty()
+                        : universityRepository.findByCode(universityCode.trim()))
+                .or(() -> user.getUniversityId() == null
+                        ? Optional.empty()
+                        : universityRepository.findById(user.getUniversityId().toHexString()))
+                .orElseThrow(() -> new BadRequestException("Vui lòng chọn trường đại học trước khi xác minh email."));
 
-        // Block if this school email is already verified by a different user.
+        // Block if this email is already verified by a different user.
         Optional<User> owner = userRepository.findBySchoolEmail(email.toLowerCase());
         if (owner.isPresent() && !owner.get().getId().equals(user.getId())) {
-            throw new BadRequestException("Email trường này đã được một tài khoản khác xác minh.");
+            throw new BadRequestException("Email này đã được một tài khoản khác xác minh.");
         }
 
         enforceRateLimit(user.getId());

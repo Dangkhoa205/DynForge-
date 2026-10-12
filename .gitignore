@@ -71,3 +71,10 @@ logs/
 *~
 
 racetest/
+
+# Android build outputs + signing keys (keys live in %USERPROFILE%\dynforge-keys, never in the repo)
+*.apk
+*.aab
+*.jks
+*.keystore
+keystore.properties

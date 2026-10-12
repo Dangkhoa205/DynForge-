@@ -63,7 +63,9 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://localhost:3000",
                 "https://*.vercel.app",
-                "https://*.azurewebsites.net"
+                "https://*.azurewebsites.net",
+                // Capacitor Android app (FE/capacitor.config.json: androidScheme https)
+                "https://localhost"
         ));
 
         // Nạp tự động từ biến môi trường APP_FRONTEND_BASE_URL (ví dụ: https://dynforge.tech hoặc https://www.dynforge.tech)

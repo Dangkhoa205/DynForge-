@@ -41,3 +41,11 @@ export async function updateProfile(payload: UpdateProfilePayload): Promise<User
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   await api.post('/api/users/me/password', { currentPassword, newPassword });
 }
+
+/**
+ * Permanently deletes the logged-in account (Google Play requirement).
+ * The backend refuses with a readable message while the wallet has money or a paid session is open.
+ */
+export async function deleteMyAccount(confirmEmail: string): Promise<void> {
+  await api.post('/api/users/me/delete-account', { confirmEmail });
+}
