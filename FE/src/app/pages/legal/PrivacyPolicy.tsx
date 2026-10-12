@@ -53,7 +53,7 @@ const vi: LegalSection[] = [
           <li><strong>Google</strong> — đăng nhập bằng Google; <strong>Google Gemini</strong> nhận nội dung câu hỏi gửi cho trợ lý AI.</li>
           <li><strong>Brevo</strong> — gửi email OTP (địa chỉ email, mã OTP).</li>
           <li><strong>Jitsi Meet (meet.jit.si)</strong> — cuộc gọi video trực tuyến; nội dung cuộc gọi không đi qua máy chủ DynForge trừ khi bạn chủ động ghi hình.</li>
-          <li><strong>Nhà cung cấp hạ tầng đám mây</strong> (Microsoft Azure và dịch vụ cơ sở dữ liệu) — lưu trữ cơ sở dữ liệu, chạy máy chủ và website.</li>
+          <li><strong>MongoDB Atlas, Render, Vercel</strong> — lưu trữ cơ sở dữ liệu, chạy máy chủ và website.</li>
         </ul>
         <p>Chúng tôi có thể cung cấp dữ liệu khi cơ quan nhà nước có thẩm quyền yêu cầu theo quy định pháp luật.</p>
       </>
@@ -152,7 +152,7 @@ const en: LegalSection[] = [
           <li><strong>Google</strong> — Google sign-in; <strong>Google Gemini</strong> receives questions sent to the AI assistant.</li>
           <li><strong>Brevo</strong> — sends one-time-code emails (email address, code).</li>
           <li><strong>Jitsi Meet (meet.jit.si)</strong> — video calls; call content does not pass through DynForge servers unless you record it.</li>
-          <li><strong>Cloud infrastructure providers</strong> (Microsoft Azure and the database service) — database, server and website hosting.</li>
+          <li><strong>MongoDB Atlas, Render, Vercel</strong> — database, server and website hosting.</li>
         </ul>
         <p>We may disclose data when required by competent authorities under applicable law.</p>
       </>

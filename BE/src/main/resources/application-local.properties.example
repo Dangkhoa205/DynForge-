@@ -1,35 +1,16 @@
-# ==============================================================================
-# DynForge Local Development Configuration (Example Template)
-# ==============================================================================
-# Instructions:
-# 1. Copy this file to 'application-local.properties' in the same directory:
-#    cp application-local.properties.example application-local.properties
-# 2. Fill in your own local credentials/keys below.
-# 3. 'application-local.properties' is ignored by Git and will NEVER be committed.
-# ==============================================================================
+# Copy this file to application-local.properties (same folder) for local development.
+# application-local.properties is gitignored - put your real keys there, never in application.properties.
 
-# Database (optional override)
-# spring.data.mongodb.uri=mongodb://localhost:27017/dynforge
+# PowerShell to generate a JWT secret:
+#   $b = New-Object byte[] 64; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+app.jwt.secret=PASTE_BASE64_SECRET_HERE
+app.webhook.secret=any-long-random-string
 
-# Security / JWT (Base64-encoded secret key, minimum 256 bits)
-app.jwt.secret=YOUR_BASE64_ENCODED_JWT_SECRET_HERE
-
-# Webhook Secret (Must NOT be default placeholder in production)
-app.webhook.secret=YOUR_CUSTOM_WEBHOOK_SECRET_HERE
-
-# OTP Secret for HMAC-SHA256 hashing
-app.otp.secret=YOUR_CUSTOM_OTP_SECRET_KEY_HERE
-
-# Brevo Transactional Email Relay (SMTP)
-spring.mail.username=YOUR_BREVO_SMTP_USERNAME
-spring.mail.password=YOUR_BREVO_SMTP_PASSWORD
-app.mail.from=your-sender-email@domain.com
-app.mail.sender-name=DynForge Support
-
-# Google Gemini AI API Key (from Google AI Studio)
-gemini.api-key=YOUR_GEMINI_API_KEY_HERE
-
-# PayOS Payment Gateway
-payos.client-id=YOUR_PAYOS_CLIENT_ID_HERE
-payos.api-key=YOUR_PAYOS_API_KEY_HERE
-payos.checksum-key=YOUR_PAYOS_CHECKSUM_KEY_HERE
+# Optional for local dev (leave empty to disable the feature)
+spring.mail.username=
+spring.mail.password=
+gemini.api-key=
+google.client-id=
+payos.client-id=
+payos.api-key=
+payos.checksum-key=

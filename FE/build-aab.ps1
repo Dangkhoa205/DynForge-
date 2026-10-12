@@ -2,13 +2,13 @@
   DynForge - build the SIGNED Android App Bundle (.aab) to upload to Google Play.
 
   Cach chay (tu thu muc goc repo):
-    powershell -ExecutionPolicy Bypass -File FE\build-aab.ps1 -ApiUrl https://<dia-chi-API-Azure> -VersionCode 2 -VersionName 1.1
+    powershell -ExecutionPolicy Bypass -File FE\build-aab.ps1 -ApiUrl https://dynforge-api.onrender.com -VersionCode 1 -VersionName 1.0
 
-  -ApiUrl       Dia chi HTTPS CO DINH cua backend (API Azure dung chung voi dynforge.tech). KHONG dung link cloudflared cho ban Play.
+  -ApiUrl       Dia chi HTTPS CO DINH cua backend tren Render. KHONG dung link cloudflared cho ban Play.
   -VersionCode  So nguyen, moi lan nop Play phai TANG (1, 2, 3...).
   -VersionName  Ten phien ban hien cho nguoi dung (1.0, 1.1...).
   -KeystoreDir  Noi luu khoa ky app (mac dinh: %USERPROFILE%\dynforge-keys, NGOAI repo).
-  -SkipApiCheck Bo qua buoc kiem tra backend (khi backend dang deploy / tam thoi khong goi duoc).
+  -SkipApiCheck Bo qua buoc kiem tra backend (khi Render dang ngu / dang deploy).
 
   Lan dau chay, script tao "upload key" va hoi mat khau. SAO LUU thu muc khoa va mat khau:
   mat khoa thi phai xin Google reset moi cap nhat duoc app.
@@ -28,7 +28,7 @@ Set-Location $PSScriptRoot   # = thu muc FE
 
 $ApiUrl = Assert-ApiUrl $ApiUrl
 if ($ApiUrl -match 'trycloudflare\.com|ngrok') {
-  Fail "Ban Play phai tro toi backend co dia chi co dinh (API Azure). Link cloudflared/ngrok se chet khi tat may."
+  Fail "Ban Play phai tro toi backend co dia chi co dinh (Render). Link cloudflared/ngrok se chet khi tat may."
 }
 if ($VersionCode -lt 1) { Fail "VersionCode phai >= 1." }
 

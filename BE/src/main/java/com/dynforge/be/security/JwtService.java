@@ -16,15 +16,19 @@ public class JwtService {
     private final long expirationMs;
 
     public JwtService(
-            @Value("${app.jwt.secret:}") String secret,
-            @Value("${app.jwt.expiration-ms:3600000}") long expirationMs
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration-ms}") long expirationMs
     ) {
         byte[] keyBytes;
-        if (secret != null && !secret.isBlank()) {
-            keyBytes = java.util.Base64.getDecoder().decode(secret.trim());
-        } else {
-            // Development fallback key (sufficient length for HMAC-SHA algorithms in dev/test)
-            keyBytes = "dynforge-development-secret-key-for-local-runs-and-testing-only-1234567890-must-be-long-enough-for-hmac-sha-512".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        try {
+            keyBytes = java.util.Base64.getDecoder().decode(secret == null ? "" : secret.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException(
+                    "JWT_SECRET khong phai chuoi Base64 hop le. Tao lai bang lenh PowerShell trong application-local.properties.example", e);
+        }
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET qua ngan (" + keyBytes.length + " byte). Can Base64 cua it nhat 32 byte ngau nhien.");
         }
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;

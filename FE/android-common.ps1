@@ -58,7 +58,7 @@ function Test-Backend([string]$apiUrl) {
     Invoke-WebRequest "$apiUrl/api/universities" -UseBasicParsing -TimeoutSec 60 | Out-Null
     Write-Host "   OK - backend tra loi."
   } catch {
-    Fail "Khong goi duoc $apiUrl/api/universities. Backend da chay chua? Kiem tra lai dia chi API (mo link tren trinh duyet de thu), hoac them -SkipApiCheck."
+    Fail "Khong goi duoc $apiUrl/api/universities. Backend da chay chua? (Render free ngu sau 15 phut - mo link tren trinh duyet cho no thuc day roi chay lai.)"
   }
 }
 

@@ -1,0 +1,7 @@
+target/
+.idea/
+*.iml
+.vscode/
+recordings/
+.env
+src/main/resources/application-local.properties

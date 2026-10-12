@@ -3,9 +3,9 @@
   For Google Play use build-aab.ps1 instead.
 
   Cach chay (tu thu muc goc repo):
-    powershell -ExecutionPolicy Bypass -File FE\build-apk.ps1 -ApiUrl https://<dia-chi-API-Azure>
+    powershell -ExecutionPolicy Bypass -File FE\build-apk.ps1 -ApiUrl https://dynforge-api.onrender.com
 
-  -ApiUrl        Dia chi HTTPS cua backend (API Azure, hoac link cloudflared khi thu tren may). Bat buoc.
+  -ApiUrl        Dia chi HTTPS cua backend (Render, hoac link cloudflared khi thu tren may). Bat buoc.
   -SkipApiCheck  Bo qua buoc kiem tra backend co dang chay khong.
 
   Ket qua: DynForge-debug.apk nam CANH thu muc repo (khong nam trong repo).
