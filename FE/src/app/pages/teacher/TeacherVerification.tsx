@@ -168,9 +168,10 @@ export function TeacherVerification() {
 
   const requestSchool = async () => {
     if (!schoolEmail.trim()) { toast.error(T.schoolEmailPrompt); return; }
+    if (!universityCode) { toast.error(T.selectUniversity); return; }
     setSchoolBusy(true);
     try {
-      await requestSchoolEmail(schoolEmail.trim());
+      await requestSchoolEmail(schoolEmail.trim(), universityCode);
       setOtpSent(true);
       toast.success(T.schoolEmailSent);
     } catch (err: any) {
@@ -437,7 +438,7 @@ export function TeacherVerification() {
                             type="email"
                             value={schoolEmail}
                             onChange={(e) => setSchoolEmail(e.target.value)}
-                            placeholder={lang === 'vi' ? 'ban@fpt.edu.vn' : 'you@fpt.edu.vn'}
+                            placeholder={lang === 'vi' ? 'email@gmail.com hoặc email trường' : 'you@gmail.com or school email'}
                             className="bg-input-background"
                           />
                           <Button type="button" onClick={requestSchool} disabled={schoolBusy}>

@@ -8,6 +8,7 @@
   -VersionCode  So nguyen, moi lan nop Play phai TANG (1, 2, 3...).
   -VersionName  Ten phien ban hien cho nguoi dung (1.0, 1.1...).
   -KeystoreDir  Noi luu khoa ky app (mac dinh: %USERPROFILE%\dynforge-keys, NGOAI repo).
+  -SkipApiCheck Bo qua buoc kiem tra backend (khi Render dang ngu / dang deploy).
 
   Lan dau chay, script tao "upload key" va hoi mat khau. SAO LUU thu muc khoa va mat khau:
   mat khoa thi phai xin Google reset moi cap nhat duoc app.
@@ -18,7 +19,8 @@ param(
   [Parameter(Mandatory = $true)][string]$ApiUrl,
   [Parameter(Mandatory = $true)][int]$VersionCode,
   [string]$VersionName = '1.0',
-  [string]$KeystoreDir = (Join-Path $env:USERPROFILE 'dynforge-keys')
+  [string]$KeystoreDir = (Join-Path $env:USERPROFILE 'dynforge-keys'),
+  [switch]$SkipApiCheck
 )
 
 Set-Location $PSScriptRoot   # = thu muc FE
@@ -31,7 +33,7 @@ if ($ApiUrl -match 'trycloudflare\.com|ngrok') {
 if ($VersionCode -lt 1) { Fail "VersionCode phai >= 1." }
 
 Initialize-Toolchain
-Test-Backend $ApiUrl
+if (-not $SkipApiCheck) { Test-Backend $ApiUrl }
 Install-Dependencies
 Build-Web $ApiUrl
 Initialize-AndroidProject

@@ -56,14 +56,14 @@ public class UserController {
         userService.changePassword(principal.getUser(), request);
     }
 
-    /** Step 1: request an OTP to the given school email (domain must belong to a University). */
+    /** Step 1: request an OTP to the given email (any domain; the university comes from the domain or the form). */
     @PostMapping("/me/school-email/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestSchoolEmail(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody SchoolEmailRequest request
     ) {
-        schoolEmailService.requestVerification(principal.getUser(), request.email());
+        schoolEmailService.requestVerification(principal.getUser(), request.email(), request.universityCode());
     }
 
     /** Step 2: confirm the OTP; on success the user is marked schoolVerified. */

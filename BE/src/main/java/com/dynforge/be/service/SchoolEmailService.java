@@ -25,7 +25,9 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Verifies that a user owns a school email whose domain belongs to a University.
+ * Verifies that a mentor owns an email address. Any domain is accepted: a known school domain
+ * picks its University, otherwise the University chosen in the mentor form (or already on the user)
+ * is used.
  * Mirrors {@link PasswordResetService}'s OTP pattern (SecureRandom 6-digit code,
  * token entity, MailService).
  */
@@ -51,22 +53,26 @@ public class SchoolEmailService {
     @Value("${app.otp.expiration-ms}")
     private long otpExpirationMs;
 
-    public void requestVerification(User user, String schoolEmail) {
+    public void requestVerification(User user, String schoolEmail, String universityCode) {
         if (schoolEmail == null || schoolEmail.isBlank()) {
-            throw new BadRequestException("Vui lòng nhập email trường.");
+            throw new BadRequestException("Vui lòng nhập email.");
         }
         String email = schoolEmail.trim();
         String domain = extractDomain(email);
 
         University university = universityRepository.findByEmailDomainsContaining(domain)
-                .orElseThrow(() -> new BadRequestException(
-                        "Email domain chưa thuộc trường nào trên DynForge. "
-                        + "Vui lòng dùng email trường hoặc gửi minh chứng cựu sinh viên."));
+                .or(() -> (universityCode == null || universityCode.isBlank())
+                        ? Optional.empty()
+                        : universityRepository.findByCode(universityCode.trim()))
+                .or(() -> user.getUniversityId() == null
+                        ? Optional.empty()
+                        : universityRepository.findById(user.getUniversityId().toHexString()))
+                .orElseThrow(() -> new BadRequestException("Vui lòng chọn trường đại học trước khi xác minh email."));
 
-        // Block if this school email is already verified by a different user.
+        // Block if this email is already verified by a different user.
         Optional<User> owner = userRepository.findBySchoolEmail(email.toLowerCase());
         if (owner.isPresent() && !owner.get().getId().equals(user.getId())) {
-            throw new BadRequestException("Email trường này đã được một tài khoản khác xác minh.");
+            throw new BadRequestException("Email này đã được một tài khoản khác xác minh.");
         }
 
         enforceRateLimit(user.getId());
@@ -123,11 +129,11 @@ public class SchoolEmailService {
     private String extractDomain(String email) {
         int at = email.lastIndexOf('@');
         if (at < 0 || at == email.length() - 1) {
-            throw new BadRequestException("Email trường không hợp lệ.");
+            throw new BadRequestException("Email không hợp lệ.");
         }
         String domain = email.substring(at + 1).toLowerCase();
         if (domain.isBlank() || domain.contains("@") || !domain.contains(".")) {
-            throw new BadRequestException("Email trường không hợp lệ.");
+            throw new BadRequestException("Email không hợp lệ.");
         }
         return domain;
     }
