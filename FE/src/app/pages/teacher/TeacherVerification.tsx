@@ -19,7 +19,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useUniversity } from '../../context/UniversityContext';
 import { majors } from '../../data/mockData';
 import {
-  listMyVerifications, submitVerification, type VerificationItem,
+  listMyVerifications, submitVerification, uploadVerificationDocument, type VerificationItem,
 } from '../../services/verificationService';
 import {
   getMyMentorProfile, updateMyMentorProfile, type BackendCourse,
@@ -34,6 +34,8 @@ interface UploadedFile {
   size: number;
   type: string;
   preview?: string;
+  /** The real file, uploaded to the server when the application is submitted. */
+  file?: File;
 }
 
 interface CourseRow {
@@ -62,6 +64,7 @@ function UploadZone({
     const newFiles: UploadedFile[] = Array.from(fileList).map((f) => ({
       name: f.name, size: f.size, type: f.type,
       preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined,
+      file: f,
     }));
     onAdd(certKey, newFiles);
     toast.success(vi ? `Đã thêm ${newFiles.length} tệp.` : `${newFiles.length} file${newFiles.length > 1 ? 's' : ''} added.`);
@@ -289,11 +292,20 @@ export function TeacherVerification() {
         const primaryDoc = (uploadedFiles['transcript'] ?? [])[0] ?? allUploaded[0];
         const alumniDoc = (uploadedFiles['id'] ?? [])[0] ?? (uploadedFiles['certificate'] ?? [])[0];
 
+        // Upload the actual files so the admin can open them (previously only the file name was saved).
+        const uploadRef = async (doc?: UploadedFile) => {
+          if (!doc) return undefined;
+          if (!doc.file) return doc.name;
+          return (await uploadVerificationDocument(doc.file)).ref;
+        };
+        const transcriptRef = await uploadRef(primaryDoc);
+        const alumniRef = alumniDoc && alumniDoc !== primaryDoc ? await uploadRef(alumniDoc) : undefined;
+
         const result = await submitVerification({
           course: valid[0].code,
           claimedGrade: valid[0].grade,
-          transcriptUrl: primaryDoc?.name,
-          alumniProofUrl: alumniDoc && alumniDoc !== primaryDoc ? alumniDoc.name : undefined,
+          transcriptUrl: transcriptRef,
+          alumniProofUrl: alumniRef,
         });
         setExisting(result);
         toast.success(vi ? 'Đã gửi hồ sơ! DynForge sẽ xét duyệt trong 2–3 ngày làm việc.' : 'Application submitted! DynForge will review within 2–3 business days.');
