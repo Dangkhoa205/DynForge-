@@ -49,7 +49,8 @@ public class MentorService {
         }
 
         return profiles.stream()
-                .map(this::toResponse)
+                .map(this::toResponseOrNull)
+                .filter(java.util.Objects::nonNull)
                 .filter(r -> !UserStatus.SUSPENDED.name().equals(r.accountStatus()))
                 .toList();
     }
@@ -71,7 +72,8 @@ public class MentorService {
                 universityId, major, courseCode, format, isVerified, pageable);
 
         List<MentorProfileResponse> items = result.getContent().stream()
-                .map(this::toResponse)
+                .map(this::toResponseOrNull)
+                .filter(java.util.Objects::nonNull)
                 .toList();
         return new PageResponse<>(
                 items,
@@ -97,7 +99,10 @@ public class MentorService {
 
     /** All mentor profiles (verified + unverified) — for admin management. */
     public List<MentorProfileResponse> listAllMentors() {
-        return mentorRepository.findAll().stream().map(this::toResponse).toList();
+        return mentorRepository.findAll().stream()
+                .map(this::toResponseOrNull)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     public MentorProfileResponse getById(String id) {
@@ -153,6 +158,19 @@ public class MentorService {
     private boolean hasApprovedVerification(ObjectId userId) {
         return verificationRepository.findByUserId(userId).stream()
                 .anyMatch(v -> v.getStatus() == VerificationStatus.APPROVED);
+    }
+
+    /**
+     * Like {@link #toResponse} but returns null for an orphan profile (its user account was deleted
+     * or the profile has no user), so one bad record no longer breaks the whole mentor list.
+     */
+    private MentorProfileResponse toResponseOrNull(MentorProfile profile) {
+        if (profile.getUserId() == null) {
+            return null;
+        }
+        return userRepository.findById(profile.getUserId().toHexString())
+                .map(user -> mentorMapper.toResponse(profile, user))
+                .orElse(null);
     }
 
     private MentorProfileResponse toResponse(MentorProfile profile) {

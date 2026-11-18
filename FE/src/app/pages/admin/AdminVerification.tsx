@@ -11,7 +11,7 @@ import {
 } from '../../components/ui/dialog';
 import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { StatusBadge } from '../../components/common';
-import { Loader2, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, FileText, ExternalLink, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   listVerifications,
@@ -20,6 +20,56 @@ import {
 } from '../../services/verificationService';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDate } from '../../lib/format';
+import { parseDocRef, openVerificationDocument } from '../../services/verificationService';
+
+/** Shows a verification document: uploaded file (opens it), external link, or an old name-only record. */
+function DocumentLink({ value, vi }: { value?: string; vi: boolean }) {
+  const [opening, setOpening] = useState(false);
+  if (!value) return <span>—</span>;
+  const doc = parseDocRef(value);
+  if (doc) {
+    return (
+      <button
+        type="button"
+        disabled={opening}
+        onClick={async () => {
+          setOpening(true);
+          try {
+            await openVerificationDocument(doc.id);
+          } catch (err: any) {
+            toast.error(err?.response?.status === 404
+              ? (vi ? 'Không tìm thấy tệp.' : 'File not found.')
+              : (vi ? 'Không mở được tệp.' : 'Could not open the file.'));
+          } finally {
+            setOpening(false);
+          }
+        }}
+        className="inline-flex max-w-[220px] items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-xs text-primary hover:bg-primary/20"
+        title={doc.fileName}
+      >
+        {opening ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : <Eye className="size-3.5 shrink-0" />}
+        <span className="truncate">{doc.fileName}</span>
+      </button>
+    );
+  }
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return (
+      <a href={value} target="_blank" rel="noopener noreferrer"
+         className="inline-flex max-w-[220px] items-center gap-1 text-xs text-primary underline">
+        <ExternalLink className="size-3 shrink-0" />
+        <span className="truncate">{value}</span>
+      </a>
+    );
+  }
+  // Old records only kept the file name — the file itself was never uploaded.
+  return (
+    <span className="inline-flex max-w-[220px] items-center gap-1.5 rounded bg-muted/60 px-2 py-1 font-mono text-xs text-muted-foreground"
+          title={vi ? `${value} — hồ sơ cũ, tệp chưa được tải lên` : `${value} — old record, file was not uploaded`}>
+      <FileText className="size-3.5 shrink-0" />
+      <span className="truncate">{value}</span>
+    </span>
+  );
+}
 
 export function AdminVerification() {
   const { lang } = useLanguage();
@@ -116,26 +166,7 @@ export function AdminVerification() {
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {item.transcriptUrl ? (
-                        item.transcriptUrl.startsWith('http://') || item.transcriptUrl.startsWith('https://') ? (
-                          <a
-                            href={item.transcriptUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline max-w-[180px] truncate"
-                          >
-                            <ExternalLink className="size-3 shrink-0" />
-                            <span className="truncate">{item.transcriptUrl}</span>
-                          </a>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-foreground font-mono bg-muted/60 px-2 py-0.5 rounded max-w-[180px] truncate" title={item.transcriptUrl}>
-                            <FileText className="size-3.5 text-primary shrink-0" />
-                            <span className="truncate">{item.transcriptUrl}</span>
-                          </span>
-                        )
-                      ) : (
-                        '—'
-                      )}
+                      <DocumentLink value={item.transcriptUrl} vi={vi} />
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {formatDate(item.createdAt, lang, { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -185,48 +216,14 @@ export function AdminVerification() {
                 </div>
                 <div className="rounded-xl border border-border p-3">
                   <p className="text-muted-foreground">{vi ? 'Bảng điểm' : 'Transcript'}</p>
-                  {selected.transcriptUrl ? (
-                    selected.transcriptUrl.startsWith('http://') || selected.transcriptUrl.startsWith('https://') ? (
-                      <a
-                        href={selected.transcriptUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-primary underline text-xs truncate pt-0.5"
-                      >
-                        <ExternalLink className="size-3 shrink-0" />
-                        <span className="truncate">{selected.transcriptUrl}</span>
-                      </a>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-foreground font-mono bg-muted/60 px-2 py-1 rounded mt-1 truncate" title={selected.transcriptUrl}>
-                        <FileText className="size-3.5 text-primary shrink-0" />
-                        <span className="truncate">{selected.transcriptUrl}</span>
-                      </span>
-                    )
-                  ) : (
-                    <p style={{ fontWeight: 500 }} className="truncate">—</p>
-                  )}
+                  <div className="pt-1"><DocumentLink value={selected.transcriptUrl} vi={vi} /></div>
                 </div>
               </div>
 
               {selected.alumniProofUrl && (
                 <div className="rounded-xl border border-border p-3 text-sm">
                   <p className="text-muted-foreground">{vi ? 'Minh chứng cựu sinh viên' : 'Alumni Proof'}</p>
-                  {selected.alumniProofUrl.startsWith('http://') || selected.alumniProofUrl.startsWith('https://') ? (
-                    <a
-                      href={selected.alumniProofUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary underline text-xs truncate pt-0.5"
-                    >
-                      <ExternalLink className="size-3 shrink-0" />
-                      <span className="truncate">{selected.alumniProofUrl}</span>
-                    </a>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-foreground font-mono bg-muted/60 px-2 py-1 rounded mt-1 truncate" title={selected.alumniProofUrl}>
-                      <FileText className="size-3.5 text-primary shrink-0" />
-                      <span className="truncate">{selected.alumniProofUrl}</span>
-                    </span>
-                  )}
+                  <div className="pt-1"><DocumentLink value={selected.alumniProofUrl} vi={vi} /></div>
                 </div>
               )}
 

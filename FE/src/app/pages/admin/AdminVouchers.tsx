@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Tag, Copy, CheckCircle2, Trash2, Search } from 'lucide-react';
 import { formatCurrency, mentors } from '../../data/mockData';
 import { Card } from '../../components/ui/card';

@@ -136,6 +136,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/resources").permitAll()
                         .requestMatchers("/api/partnerships/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/verifications/mine").authenticated()
+                        // Mentor's own uploaded documents (ownership checked in the service; admins see all).
+                        .requestMatchers(HttpMethod.GET, "/api/verifications/documents/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/verifications/**").hasRole("ADMIN")
                         .requestMatchers("/api/verifications/*/decision").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
