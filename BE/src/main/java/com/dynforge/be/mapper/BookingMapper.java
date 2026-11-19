@@ -2,6 +2,7 @@ package com.dynforge.be.mapper;
 
 import com.dynforge.be.model.dto.BookingResponse;
 import com.dynforge.be.model.entity.Booking;
+import com.dynforge.be.model.entity.User;
 import com.dynforge.be.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -13,10 +14,13 @@ public class BookingMapper {
     private final UserRepository userRepository;
 
     public BookingResponse toResponse(Booking booking) {
-        String menteeName = userRepository.findById(booking.getMenteeId().toHexString())
-                .map(u -> u.getFullName()).orElse(null);
+        User mentee = userRepository.findById(booking.getMenteeId().toHexString()).orElse(null);
+        String menteeName = mentee != null ? mentee.getFullName() : null;
+        String menteeEmail = mentee != null ? mentee.getEmail() : null;
+        String menteeAvatarUrl = mentee != null ? mentee.getAvatarUrl() : null;
+
         String mentorName = userRepository.findById(booking.getMentorId().toHexString())
-                .map(u -> u.getFullName()).orElse(null);
+                .map(User::getFullName).orElse(null);
 
         return new BookingResponse(
                 booking.getId(),
@@ -43,7 +47,9 @@ public class BookingMapper {
                 booking.getRescheduledFrom(),
                 booking.getPendingStartAt(),
                 booking.getRescheduleCount(),
-                booking.getEffectiveRoomId()
+                booking.getEffectiveRoomId(),
+                menteeEmail,
+                menteeAvatarUrl
         );
     }
 }

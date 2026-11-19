@@ -4,6 +4,7 @@ import com.dynforge.be.model.dto.AdminDashboardResponse;
 import com.dynforge.be.model.dto.AdminDisputeResponse;
 import com.dynforge.be.model.dto.AdminTransactionResponse;
 import com.dynforge.be.model.dto.ApiResponse;
+import com.dynforge.be.model.dto.BookingResponse;
 import com.dynforge.be.model.dto.CommissionReportResponse;
 import com.dynforge.be.model.dto.MentorProfileResponse;
 import com.dynforge.be.model.dto.RecordingResponse;
@@ -78,5 +79,10 @@ public class AdminController {
     @GetMapping("/mentors")
     public ApiResponse<List<MentorProfileResponse>> mentors() {
         return ApiResponse.ok(mentorService.listAllMentors());
+    }
+
+    @GetMapping("/mentors/{mentorUserId}/bookings")
+    public ApiResponse<List<BookingResponse>> mentorBookings(@PathVariable String mentorUserId) {
+        return ApiResponse.ok(adminService.getMentorBookings(mentorUserId));
     }
 }

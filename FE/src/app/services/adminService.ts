@@ -1,6 +1,7 @@
 import api from './api';
 import type { UserProfile } from './userService';
 import type { MentorProfileResponse } from './mentorService';
+import type { BookingResponse } from './bookingService';
 
 export interface AdminDashboard {
   totalUsers: number;
@@ -93,4 +94,9 @@ export async function listAdminMentors(): Promise<MentorProfileResponse[]> {
 export async function resolveDispute(bookingId: string, releaseToMentor: boolean) {
   const { data } = await api.patch(`/api/bookings/${bookingId}/resolve`, { releaseToMentor });
   return data.data;
+}
+
+export async function getAdminMentorBookings(mentorUserId: string): Promise<BookingResponse[]> {
+  const { data } = await api.get(`/api/admin/mentors/${mentorUserId}/bookings`);
+  return data.data as BookingResponse[];
 }

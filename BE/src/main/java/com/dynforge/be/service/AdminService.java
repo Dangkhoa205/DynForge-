@@ -1,17 +1,20 @@
 package com.dynforge.be.service;
 
+import com.dynforge.be.exception.BadRequestException;
 import com.dynforge.be.exception.ResourceNotFoundException;
+import com.dynforge.be.mapper.BookingMapper;
 import com.dynforge.be.mapper.UserMapper;
 import com.dynforge.be.model.dto.AdminDashboardResponse;
 import com.dynforge.be.model.dto.AdminDisputeResponse;
 import com.dynforge.be.model.dto.AdminTransactionResponse;
+import com.dynforge.be.model.dto.BookingResponse;
 import com.dynforge.be.model.dto.CommissionReportResponse;
 import com.dynforge.be.model.dto.UserResponse;
 import com.dynforge.be.model.entity.Booking;
 import com.dynforge.be.model.entity.EscrowTransaction;
+import com.dynforge.be.model.entity.MentorProfile;
 import com.dynforge.be.model.entity.User;
 import com.dynforge.be.model.entity.WalletTransaction;
-import com.dynforge.be.model.enums.BookingStatus;
 import com.dynforge.be.model.enums.BookingStatus;
 import com.dynforge.be.model.enums.EscrowStatus;
 import com.dynforge.be.model.enums.Role;
@@ -20,12 +23,15 @@ import com.dynforge.be.model.enums.UserStatus;
 import com.dynforge.be.model.enums.VerificationStatus;
 import com.dynforge.be.repository.BookingRepository;
 import com.dynforge.be.repository.EscrowTransactionRepository;
+import com.dynforge.be.repository.MentorRepository;
 import com.dynforge.be.repository.UserRepository;
 import com.dynforge.be.repository.VerificationRepository;
 import com.dynforge.be.repository.WalletTransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +49,8 @@ public class AdminService {
     private final WalletTransactionRepository walletTxnRepository;
     private final VerificationRepository verificationRepository;
     private final UserMapper userMapper;
+    private final BookingMapper bookingMapper;
+    private final MentorRepository mentorRepository;
 
     // ── dashboard ─────────────────────────────────────────────────────────────
 
@@ -127,6 +135,28 @@ public class AdminService {
                 released.size(),
                 held.size()
         );
+    }
+
+    // ── mentor bookings & mentees ─────────────────────────────────────────────
+
+    public List<BookingResponse> getMentorBookings(String id) {
+        ObjectId targetId;
+        try {
+            targetId = new ObjectId(id);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Invalid ID: " + id);
+        }
+
+        ObjectId mentorUserId = targetId;
+        MentorProfile profile = mentorRepository.findById(id).orElse(null);
+        if (profile != null && profile.getUserId() != null) {
+            mentorUserId = profile.getUserId();
+        }
+
+        return bookingRepository.findByMentorId(mentorUserId).stream()
+                .sorted(Comparator.comparing(Booking::getStartAt).reversed())
+                .map(bookingMapper::toResponse)
+                .toList();
     }
 
     // ── internals ────────────────────────────────────────────────────────────

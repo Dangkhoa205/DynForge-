@@ -38,6 +38,8 @@ export interface BookingResponse {
   pendingStartAt?: string;
   rescheduleCount?: number;
   roomId?: string;
+  menteeEmail?: string;
+  menteeAvatarUrl?: string;
 }
 
 export interface MentorEarningsResponse {
