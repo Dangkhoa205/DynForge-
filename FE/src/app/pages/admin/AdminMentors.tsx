@@ -385,17 +385,15 @@ export function AdminMentors() {
               {filtered.length} {vi ? 'mentor' : 'mentors'}
             </p>
             <div className="overflow-x-auto rounded-xl border border-border/60">
-              <Table className="min-w-[1100px]">
+              <Table className="min-w-[950px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[240px] pl-4">Mentor</TableHead>
-                    <TableHead className="min-w-[190px]">{vi ? 'Ngành' : 'Major'}</TableHead>
+                    <TableHead className="min-w-[200px]">{vi ? 'Ngành' : 'Major'}</TableHead>
                     <TableHead className="min-w-[130px]">{vi ? 'Xác minh' : 'Verification'}</TableHead>
-                    <TableHead className="min-w-[100px]">{vi ? 'Đánh giá' : 'Rating'}</TableHead>
-                    <TableHead className="min-w-[90px] text-center">{vi ? 'Buổi học' : 'Sessions'}</TableHead>
-                    <TableHead className="min-w-[130px]">{vi ? 'Học phí' : 'Rate'}</TableHead>
+                    <TableHead className="min-w-[110px]">{vi ? 'Đánh giá' : 'Rating'}</TableHead>
                     <TableHead className="min-w-[110px]">{vi ? 'Trạng thái' : 'Status'}</TableHead>
-                    <TableHead className="min-w-[300px] text-right pr-4">{vi ? 'Thao tác' : 'Actions'}</TableHead>
+                    <TableHead className="min-w-[290px] text-right pr-4">{vi ? 'Thao tác' : 'Actions'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -421,17 +419,13 @@ export function AdminMentors() {
                           </div>
                         </button>
                       </TableCell>
-                      <TableCell className="min-w-[190px] text-muted-foreground">
-                        <span className="truncate block max-w-[180px]">{m.major || '—'}</span>
+                      <TableCell className="min-w-[200px] text-muted-foreground">
+                        <span className="truncate block max-w-[190px]">{m.major || '—'}</span>
                       </TableCell>
                       <TableCell className="min-w-[130px]"><VerifiedBadge verified={m.verified} /></TableCell>
-                      <TableCell className="min-w-[100px]"><StarRating rating={m.rating} /></TableCell>
-                      <TableCell className="min-w-[90px] text-center text-muted-foreground">{m.sessionsCompleted}</TableCell>
-                      <TableCell className="min-w-[130px]" style={{ fontWeight: 500 }}>
-                        {m.hourlyRate ? `${formatCurrency(m.hourlyRate)}/${vi ? 'giờ' : 'hr'}` : '—'}
-                      </TableCell>
+                      <TableCell className="min-w-[110px]"><StarRating rating={m.rating} /></TableCell>
                       <TableCell className="min-w-[110px]"><StatusBadge status={m.suspended ? 'Suspended' : 'Active'} /></TableCell>
-                      <TableCell className="min-w-[300px] text-right pr-4">
+                      <TableCell className="min-w-[290px] text-right pr-4">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Button 1: Profile */}
                           <Button
