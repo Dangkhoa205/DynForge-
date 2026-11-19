@@ -91,4 +91,16 @@ public class AdminController {
     public ApiResponse<AdminMentorScheduleOverview> mentorScheduleOverview(@PathVariable String mentorUserId) {
         return ApiResponse.ok(adminService.getMentorScheduleOverview(mentorUserId));
     }
+
+    @PatchMapping("/mentors/{mentorUserId}/courses/{courseCode}/verify")
+    public ApiResponse<MentorProfileResponse> toggleCourseVerification(
+            @PathVariable String mentorUserId,
+            @PathVariable String courseCode,
+            @RequestParam(defaultValue = "true") boolean verified
+    ) {
+        return ApiResponse.ok(
+                verified ? "Course verified successfully" : "Course verification removed",
+                adminService.toggleCourseVerification(mentorUserId, courseCode, verified)
+        );
+    }
 }

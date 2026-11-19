@@ -3,6 +3,7 @@ package com.dynforge.be.service;
 import com.dynforge.be.exception.BadRequestException;
 import com.dynforge.be.exception.ResourceNotFoundException;
 import com.dynforge.be.mapper.BookingMapper;
+import com.dynforge.be.mapper.MentorMapper;
 import com.dynforge.be.mapper.UserMapper;
 import com.dynforge.be.model.dto.AdminDashboardResponse;
 import com.dynforge.be.model.dto.AdminDisputeResponse;
@@ -12,12 +13,15 @@ import com.dynforge.be.model.dto.AdminMentorScheduleOverview;
 import com.dynforge.be.model.dto.AdminTransactionResponse;
 import com.dynforge.be.model.dto.BookingResponse;
 import com.dynforge.be.model.dto.CommissionReportResponse;
+import com.dynforge.be.model.dto.MentorProfileResponse;
 import com.dynforge.be.model.dto.UserResponse;
 import com.dynforge.be.model.entity.Booking;
+import com.dynforge.be.model.entity.Course;
 import com.dynforge.be.model.entity.EscrowTransaction;
 import com.dynforge.be.model.entity.MentorProfile;
 import com.dynforge.be.model.entity.University;
 import com.dynforge.be.model.entity.User;
+import com.dynforge.be.model.entity.VerificationRequest;
 import com.dynforge.be.model.entity.WalletTransaction;
 import com.dynforge.be.model.enums.BookingStatus;
 import com.dynforge.be.model.enums.EscrowStatus;
@@ -35,6 +39,8 @@ import com.dynforge.be.repository.WalletTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -65,6 +71,7 @@ public class AdminService {
     private final BookingMapper bookingMapper;
     private final MentorRepository mentorRepository;
     private final UniversityRepository universityRepository;
+    private final MentorMapper mentorMapper;
 
     // ── dashboard ─────────────────────────────────────────────────────────────
 
@@ -288,6 +295,64 @@ public class AdminService {
             return profile.getUserId();
         }
         return targetId;
+    }
+
+    public MentorProfileResponse toggleCourseVerification(String mentorIdOrUserId, String courseCode, boolean verified) {
+        ObjectId mentorUserId = resolveMentorUserId(mentorIdOrUserId);
+
+        MentorProfile profile = mentorRepository.findByUserId(mentorUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Mentor profile not found for user: " + mentorUserId));
+
+        if (profile.getCourses() == null || profile.getCourses().isEmpty()) {
+            throw new BadRequestException("Mentor does not have any courses registered");
+        }
+
+        boolean found = false;
+        for (Course c : profile.getCourses()) {
+            if (c.getCode() != null && c.getCode().equalsIgnoreCase(courseCode)) {
+                c.setVerified(verified);
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            throw new ResourceNotFoundException("Course " + courseCode + " not found in mentor profile");
+        }
+
+        // If verified is true, ensure profile is marked verified; if false, verify if any other course is still verified
+        if (verified) {
+            profile.setVerified(true);
+        } else {
+            boolean anyVerified = profile.getCourses().stream().anyMatch(Course::isVerified);
+            profile.setVerified(anyVerified);
+        }
+
+        profile = mentorRepository.save(profile);
+
+        User user = userRepository.findById(mentorUserId.toHexString()).orElse(null);
+        if (user != null) {
+            if (verified && (user.getRoles() == null || !user.getRoles().contains(Role.MENTOR))) {
+                Set<Role> roles = user.getRoles() == null ? EnumSet.noneOf(Role.class) : EnumSet.copyOf(user.getRoles());
+                roles.add(Role.MENTOR);
+                user.setRoles(roles);
+                userRepository.save(user);
+            }
+        }
+
+        // Synchronize corresponding VerificationRequest if present
+        List<VerificationRequest> requests = verificationRepository.findByUserId(mentorUserId);
+        for (VerificationRequest vr : requests) {
+            if (vr.getCourse() != null && vr.getCourse().equalsIgnoreCase(courseCode)) {
+                if (vr.getStatus() == VerificationStatus.PENDING) {
+                    vr.setStatus(verified ? VerificationStatus.APPROVED : VerificationStatus.REJECTED);
+                    vr.setReviewedAt(Instant.now());
+                    verificationRepository.save(vr);
+                }
+            }
+        }
+
+        return mentorMapper.toResponse(profile, user);
     }
 
     // ── internals ────────────────────────────────────────────────────────────

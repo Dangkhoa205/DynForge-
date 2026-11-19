@@ -51,6 +51,7 @@ import {
   listAdminMentors,
   updateUserStatus,
   getAdminMentorScheduleOverview,
+  toggleAdminMentorCourseVerification,
   type AdminMentorScheduleOverview,
 } from '../../services/adminService';
 import { useLanguage } from '../../context/LanguageContext';
@@ -199,6 +200,33 @@ export function AdminMentors() {
       toast.error(err?.response?.data?.message ?? (vi ? 'Không thể cập nhật trạng thái mentor.' : 'Could not update mentor status.'));
     } finally {
       setActingId(null);
+    }
+  };
+
+  const [verifyingCode, setVerifyingCode] = useState<string | null>(null);
+
+  const handleToggleCourseVerify = async (courseCode: string, currentVerified: boolean) => {
+    if (!profileSelected) return;
+    const targetVerified = !currentVerified;
+    setVerifyingCode(courseCode);
+    try {
+      const updatedProfile = await toggleAdminMentorCourseVerification(
+        profileSelected.userId,
+        courseCode,
+        targetVerified
+      );
+      const newRow = toRow(updatedProfile);
+      setProfileSelected(newRow);
+      setRows((prev) => prev.map((r) => (r.userId === profileSelected.userId ? newRow : r)));
+      toast.success(
+        targetVerified
+          ? (vi ? `Đã duyệt môn ${courseCode} cho mentor ${profileSelected.name}.` : `Course ${courseCode} verified successfully.`)
+          : (vi ? `Đã bỏ duyệt môn ${courseCode} của mentor ${profileSelected.name}.` : `Course ${courseCode} verification removed.`)
+      );
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? (vi ? 'Cập nhật trạng thái môn học thất bại.' : 'Failed to update course status.'));
+    } finally {
+      setVerifyingCode(null);
     }
   };
 
@@ -676,47 +704,84 @@ export function AdminMentors() {
                       <table className="w-full text-xs">
                         <thead className="bg-muted/60 text-muted-foreground border-b border-border">
                           <tr>
-                            <th className="py-3 px-3.5 text-left font-semibold">{vi ? 'Mã môn' : 'Code'}</th>
-                            <th className="py-3 px-3.5 text-left font-semibold">{vi ? 'Tên môn học' : 'Course Name'}</th>
-                            <th className="py-3 px-3 text-center font-semibold">{vi ? 'Điểm' : 'Grade'}</th>
-                            <th className="py-3 px-3.5 text-right font-semibold">{vi ? 'Học phí 1-1' : '1-on-1 Rate'}</th>
-                            <th className="py-3 px-3.5 text-right font-semibold">{vi ? 'Học phí nhóm' : 'Group Rate'}</th>
-                            <th className="py-3 px-3.5 text-center font-semibold">{vi ? 'Xác minh' : 'Status'}</th>
+                            <th className="py-3 px-3 text-left font-semibold">{vi ? 'Mã môn' : 'Code'}</th>
+                            <th className="py-3 px-3 text-left font-semibold">{vi ? 'Tên môn học' : 'Course Name'}</th>
+                            <th className="py-3 px-2 text-center font-semibold">{vi ? 'Điểm' : 'Grade'}</th>
+                            <th className="py-3 px-3 text-right font-semibold">{vi ? 'Học phí 1-1' : '1-on-1 Rate'}</th>
+                            <th className="py-3 px-3 text-right font-semibold">{vi ? 'Học phí nhóm' : 'Group Rate'}</th>
+                            <th className="py-3 px-3 text-center font-semibold">{vi ? 'Xác minh' : 'Status'}</th>
+                            <th className="py-3 px-3 text-right font-semibold">{vi ? 'Thao tác' : 'Action'}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60">
                           {profileSelected.courses.map((c, i) => (
                             <tr key={c.code + i} className="hover:bg-muted/30 transition-colors">
-                              <td className="py-2.5 px-3.5 font-bold font-mono text-primary text-xs">
+                              <td className="py-2.5 px-3 font-bold font-mono text-primary text-xs">
                                 <span className="bg-primary/10 px-2 py-0.5 rounded">
                                   {c.code}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-3.5 text-foreground font-semibold">
+                              <td className="py-2.5 px-3 text-foreground font-semibold">
                                 {c.name || c.code}
                               </td>
-                              <td className="py-2.5 px-3 text-center">
+                              <td className="py-2.5 px-2 text-center">
                                 {c.grade ? (
                                   <span className="rounded bg-primary/15 px-2 py-0.5 font-bold text-primary text-xs">
                                     {c.grade}
                                   </span>
                                 ) : '—'}
                               </td>
-                              <td className="py-2.5 px-3.5 text-right font-bold text-foreground">
+                              <td className="py-2.5 px-3 text-right font-bold text-foreground">
                                 {c.ratePrivate ? `${formatCurrency(c.ratePrivate)}/h` : '—'}
                               </td>
-                              <td className="py-2.5 px-3.5 text-right font-bold text-foreground">
+                              <td className="py-2.5 px-3 text-right font-bold text-foreground">
                                 {c.rateGroup ? `${formatCurrency(c.rateGroup)}/h` : '—'}
                               </td>
-                              <td className="py-2.5 px-3.5 text-center">
+                              <td className="py-2.5 px-3 text-center">
                                 {c.verified ? (
-                                  <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold text-xs">
+                                  <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold text-xs bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                                     <CheckCircle2 className="size-3.5" /> {vi ? 'Đã duyệt' : 'Verified'}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-muted-foreground text-xs">
+                                  <span className="inline-flex items-center gap-1 text-amber-400 font-semibold text-xs bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                                     <Clock className="size-3.5" /> {vi ? 'Chờ duyệt' : 'Pending'}
                                   </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                {c.verified ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={verifyingCode === c.code}
+                                    onClick={() => handleToggleCourseVerify(c.code, true)}
+                                    className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/10 gap-1"
+                                    title={vi ? 'Bỏ duyệt môn học này' : 'Unverify course'}
+                                  >
+                                    {verifyingCode === c.code ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <RotateCcw className="size-3" />
+                                    )}
+                                    {vi ? 'Bỏ duyệt' : 'Unverify'}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={verifyingCode === c.code}
+                                    onClick={() => handleToggleCourseVerify(c.code, false)}
+                                    className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-medium gap-1 shadow-xs"
+                                    title={vi ? 'Duyệt môn học này cho mentor' : 'Verify this course'}
+                                  >
+                                    {verifyingCode === c.code ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="size-3" />
+                                    )}
+                                    {vi ? 'Duyệt môn' : 'Verify'}
+                                  </Button>
                                 )}
                               </td>
                             </tr>

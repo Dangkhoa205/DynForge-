@@ -157,3 +157,16 @@ export async function getAdminMentorScheduleOverview(mentorUserId: string): Prom
   const { data } = await api.get(`/api/admin/mentors/${mentorUserId}/schedule-overview`);
   return data.data as AdminMentorScheduleOverview;
 }
+
+export async function toggleAdminMentorCourseVerification(
+  mentorUserId: string,
+  courseCode: string,
+  verified: boolean
+): Promise<MentorProfileResponse> {
+  const { data } = await api.patch(
+    `/api/admin/mentors/${mentorUserId}/courses/${encodeURIComponent(courseCode)}/verify`,
+    null,
+    { params: { verified } }
+  );
+  return data.data as MentorProfileResponse;
+}
