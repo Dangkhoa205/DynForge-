@@ -384,52 +384,54 @@ export function AdminMentors() {
             <p className="mb-4 text-sm text-muted-foreground">
               {filtered.length} {vi ? 'mentor' : 'mentors'}
             </p>
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="overflow-x-auto rounded-xl border border-border/60">
+              <Table className="min-w-[1100px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Mentor</TableHead>
-                    <TableHead>{vi ? 'Ngành' : 'Major'}</TableHead>
-                    <TableHead>{vi ? 'Xác minh' : 'Verification'}</TableHead>
-                    <TableHead>{vi ? 'Đánh giá' : 'Rating'}</TableHead>
-                    <TableHead>{vi ? 'Buổi học' : 'Sessions'}</TableHead>
-                    <TableHead>{vi ? 'Học phí' : 'Rate'}</TableHead>
-                    <TableHead>{vi ? 'Trạng thái' : 'Status'}</TableHead>
-                    <TableHead className="text-right">{vi ? 'Thao tác' : 'Actions'}</TableHead>
+                    <TableHead className="min-w-[240px] pl-4">Mentor</TableHead>
+                    <TableHead className="min-w-[190px]">{vi ? 'Ngành' : 'Major'}</TableHead>
+                    <TableHead className="min-w-[130px]">{vi ? 'Xác minh' : 'Verification'}</TableHead>
+                    <TableHead className="min-w-[100px]">{vi ? 'Đánh giá' : 'Rating'}</TableHead>
+                    <TableHead className="min-w-[90px] text-center">{vi ? 'Buổi học' : 'Sessions'}</TableHead>
+                    <TableHead className="min-w-[130px]">{vi ? 'Học phí' : 'Rate'}</TableHead>
+                    <TableHead className="min-w-[110px]">{vi ? 'Trạng thái' : 'Status'}</TableHead>
+                    <TableHead className="min-w-[300px] text-right pr-4">{vi ? 'Thao tác' : 'Actions'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((m) => (
                     <TableRow key={m.userId} className="hover:bg-muted/30">
-                      <TableCell>
+                      <TableCell className="min-w-[240px] pl-4">
                         <button
                           type="button"
                           onClick={() => setProfileSelected(m)}
-                          className="flex items-center gap-2.5 text-left group"
+                          className="flex items-center gap-3 text-left group w-full"
                           title={vi ? 'Bấm để xem hồ sơ chuyên môn' : 'Click to view profile'}
                         >
                           <ImageWithFallback
                             src={m.avatar}
                             alt={m.name}
-                            className="size-9 rounded-xl object-cover ring-1 ring-border group-hover:ring-primary transition-all"
+                            className="size-10 rounded-xl object-cover ring-1 ring-border group-hover:ring-primary shrink-0 transition-all"
                           />
-                          <div>
-                            <p style={{ fontWeight: 500 }} className="group-hover:text-primary transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <p style={{ fontWeight: 600 }} className="text-foreground group-hover:text-primary transition-colors truncate">
                               {m.name}
                             </p>
-                            <p className="text-xs text-muted-foreground">{m.role}</p>
+                            <p className="text-xs text-muted-foreground truncate">{m.role}</p>
                           </div>
                         </button>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{m.major || '—'}</TableCell>
-                      <TableCell><VerifiedBadge verified={m.verified} /></TableCell>
-                      <TableCell><StarRating rating={m.rating} /></TableCell>
-                      <TableCell className="text-muted-foreground">{m.sessionsCompleted}</TableCell>
-                      <TableCell style={{ fontWeight: 500 }}>
+                      <TableCell className="min-w-[190px] text-muted-foreground">
+                        <span className="truncate block max-w-[180px]">{m.major || '—'}</span>
+                      </TableCell>
+                      <TableCell className="min-w-[130px]"><VerifiedBadge verified={m.verified} /></TableCell>
+                      <TableCell className="min-w-[100px]"><StarRating rating={m.rating} /></TableCell>
+                      <TableCell className="min-w-[90px] text-center text-muted-foreground">{m.sessionsCompleted}</TableCell>
+                      <TableCell className="min-w-[130px]" style={{ fontWeight: 500 }}>
                         {m.hourlyRate ? `${formatCurrency(m.hourlyRate)}/${vi ? 'giờ' : 'hr'}` : '—'}
                       </TableCell>
-                      <TableCell><StatusBadge status={m.suspended ? 'Suspended' : 'Active'} /></TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="min-w-[110px]"><StatusBadge status={m.suspended ? 'Suspended' : 'Active'} /></TableCell>
+                      <TableCell className="min-w-[300px] text-right pr-4">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Button 1: Profile */}
                           <Button
