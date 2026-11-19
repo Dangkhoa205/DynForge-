@@ -56,6 +56,58 @@ export interface AdminDispute {
   mentorRespondedAt?: string;
 }
 
+export interface AdminMenteeDetail {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  studentId?: string;
+  major?: string;
+  universityName?: string;
+  universityCode?: string;
+  year?: string;
+  avatarUrl?: string;
+  schoolEmail?: string;
+  schoolVerified: boolean;
+  status: string;
+  joinedAt?: string;
+  totalSessionsWithMentor: number;
+}
+
+export interface AdminMentorBookingItem {
+  id: string;
+  courseCode: string;
+  format: 'ONE_ON_ONE' | 'GROUP';
+  startAt: string;
+  durationMin: number;
+  price: number;
+  commissionRate: number;
+  status: string;
+  createdAt: string;
+  acceptedAt?: string;
+  taughtAt?: string;
+  roomId?: string;
+  disputeIssueType?: string;
+  disputeReason?: string;
+  mentee?: AdminMenteeDetail;
+}
+
+export interface AdminMentorScheduleOverview {
+  mentorUserId: string;
+  mentorName: string;
+  mentorAvatarUrl?: string;
+  mentorRole: string;
+  university?: string;
+  major?: string;
+  totalSessions: number;
+  uniqueMenteesCount: number;
+  totalRevenue: number;
+  upcomingCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  sessions: AdminMentorBookingItem[];
+}
+
 export async function getAdminDashboard(): Promise<AdminDashboard> {
   const { data } = await api.get('/api/admin/dashboard');
   return data.data as AdminDashboard;
@@ -99,4 +151,9 @@ export async function resolveDispute(bookingId: string, releaseToMentor: boolean
 export async function getAdminMentorBookings(mentorUserId: string): Promise<BookingResponse[]> {
   const { data } = await api.get(`/api/admin/mentors/${mentorUserId}/bookings`);
   return data.data as BookingResponse[];
+}
+
+export async function getAdminMentorScheduleOverview(mentorUserId: string): Promise<AdminMentorScheduleOverview> {
+  const { data } = await api.get(`/api/admin/mentors/${mentorUserId}/schedule-overview`);
+  return data.data as AdminMentorScheduleOverview;
 }

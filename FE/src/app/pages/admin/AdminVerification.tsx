@@ -466,14 +466,15 @@ export function AdminVerification() {
 
       {selected && (
         <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setRejectNote(''); }}>
-          <DialogContent className="max-w-lg" aria-describedby={undefined}>
+          <DialogContent className="w-[92vw] max-w-4xl sm:max-w-4xl max-h-[92vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>
-                {vi ? 'Xét duyệt' : 'Review'}: {selected.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}
+              <DialogTitle className="flex items-center gap-2">
+                <UserCheck className="size-5 text-primary" />
+                {vi ? 'Xét duyệt minh chứng chuyên môn' : 'Verification Review'}: {selected.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="space-y-4 pt-1">
               {isDeletedAccount(selected) && (
                 <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-500">
                   <AlertTriangle className="size-4 shrink-0" />
@@ -485,62 +486,86 @@ export function AdminVerification() {
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <ImageWithFallback
-                  src={selected.avatarUrl ?? ''}
-                  alt={selected.userName ?? ''}
-                  className="size-14 rounded-xl object-cover"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p style={{ fontWeight: 600 }} className={!selected.userName ? 'text-muted-foreground italic' : ''}>
-                      {selected.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}
-                    </p>
-                    {isDeletedAccount(selected) && (
-                      <Badge variant="destructive" className="bg-destructive/20 text-destructive text-[10px]">
-                        {vi ? 'Tài khoản đã xóa' : 'Deleted'}
-                      </Badge>
-                    )}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                {/* Left Column: Applicant Identity & Notes (7 cols) */}
+                <div className="md:col-span-7 space-y-4">
+                  <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-card/60 p-4">
+                    <ImageWithFallback
+                      src={selected.avatarUrl ?? ''}
+                      alt={selected.userName ?? ''}
+                      className="size-14 rounded-2xl object-cover ring-2 ring-primary/20 shrink-0"
+                    />
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className={cn('text-base font-bold', !selected.userName && 'text-muted-foreground italic')}>
+                          {selected.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}
+                        </p>
+                        {isDeletedAccount(selected) && (
+                          <Badge variant="destructive" className="bg-destructive/20 text-destructive text-[10px]">
+                            {vi ? 'Tài khoản đã xóa' : 'Deleted'}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono">User ID: {selected.userId}</p>
+                      <p className="text-xs text-primary font-medium">
+                        {vi ? 'Môn đăng ký:' : 'Applied for:'} <strong className="text-foreground">{selected.course}</strong>
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{vi ? 'Đăng ký môn:' : 'Applied for:'} <strong>{selected.course}</strong></p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl border border-border p-3">
-                  <p className="text-muted-foreground">{vi ? 'Điểm khai báo' : 'Claimed grade'}</p>
-                  <p style={{ fontWeight: 600 }}>{selected.claimedGrade}</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{vi ? 'Ghi chú từ chối (bắt buộc khi từ chối hồ sơ)' : 'Rejection note (required when rejecting)'}</Label>
+                    <Textarea
+                      value={rejectNote}
+                      onChange={(e) => setRejectNote(e.target.value)}
+                      placeholder={vi ? 'Nhập lý do chi tiết vì sao hồ sơ hoặc minh chứng bị từ chối…' : 'Explain specifically why the transcript or application was rejected…'}
+                      rows={4}
+                      className="text-xs"
+                    />
+                  </div>
                 </div>
-                <div className="rounded-xl border border-border p-3">
-                  <p className="text-muted-foreground">{vi ? 'Bảng điểm' : 'Transcript'}</p>
-                  <div className="pt-1"><DocumentLink value={selected.transcriptUrl} vi={vi} /></div>
-                </div>
-              </div>
 
-              {selected.alumniProofUrl && (
-                <div className="rounded-xl border border-border p-3 text-sm">
-                  <p className="text-muted-foreground">{vi ? 'Minh chứng cựu sinh viên' : 'Alumni Proof'}</p>
-                  <div className="pt-1"><DocumentLink value={selected.alumniProofUrl} vi={vi} /></div>
-                </div>
-              )}
+                {/* Right Column: Academic & Proof Documents (5 cols) */}
+                <div className="md:col-span-5 space-y-3">
+                  <div className="rounded-xl border border-border p-3.5 space-y-1 bg-card/40">
+                    <p className="text-xs text-muted-foreground">{vi ? 'Điểm môn khai báo' : 'Claimed Grade'}</p>
+                    <p className="text-2xl font-black text-primary">{selected.claimedGrade}</p>
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label>{vi ? 'Ghi chú từ chối (bắt buộc khi từ chối)' : 'Rejection note (required when rejecting)'}</Label>
-                <Textarea
-                  value={rejectNote}
-                  onChange={(e) => setRejectNote(e.target.value)}
-                  placeholder={vi ? 'Giải thích vì sao hồ sơ bị từ chối…' : 'Explain why the application is rejected…'}
-                  rows={3}
-                />
+                  <div className="rounded-xl border border-border p-3.5 space-y-2 bg-card/40">
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <FileText className="size-3.5 text-primary" />
+                      {vi ? 'Bảng điểm / Minh chứng học tập' : 'Academic Transcript'}
+                    </p>
+                    <div className="pt-1"><DocumentLink value={selected.transcriptUrl} vi={vi} /></div>
+                  </div>
+
+                  {selected.alumniProofUrl && (
+                    <div className="rounded-xl border border-border p-3.5 space-y-2 bg-card/40">
+                      <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <UserCheck className="size-3.5 text-blue-400" />
+                        {vi ? 'Minh chứng cựu sinh viên (Alumni)' : 'Alumni Proof Document'}
+                      </p>
+                      <div className="pt-1"><DocumentLink value={selected.alumniProofUrl} vi={vi} /></div>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-muted-foreground font-mono pt-1">
+                    {vi ? 'Ngày nộp:' : 'Submitted:'} {formatDate(selected.createdAt, lang)}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <DialogFooter className="gap-2">
-              <Button variant="destructive" onClick={() => handleDecide('REJECTED')} disabled={deciding}>
+            <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 border-t border-border pt-4">
+              <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="text-xs">
+                {vi ? 'Hủy' : 'Cancel'}
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDecide('REJECTED')} disabled={deciding} className="text-xs">
                 {deciding ? <Loader2 className="size-4 animate-spin" /> : (vi ? 'Từ chối' : 'Reject')}
               </Button>
-              <Button onClick={() => handleDecide('APPROVED')} disabled={deciding}>
-                {deciding ? <Loader2 className="size-4 animate-spin" /> : (vi ? 'Duyệt' : 'Approve')}
+              <Button size="sm" onClick={() => handleDecide('APPROVED')} disabled={deciding} className="text-xs">
+                {deciding ? <Loader2 className="size-4 animate-spin" /> : (vi ? 'Duyệt hồ sơ' : 'Approve')}
               </Button>
             </DialogFooter>
           </DialogContent>
