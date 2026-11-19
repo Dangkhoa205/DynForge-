@@ -6,6 +6,9 @@ import com.dynforge.be.mapper.BookingMapper;
 import com.dynforge.be.mapper.UserMapper;
 import com.dynforge.be.model.dto.AdminDashboardResponse;
 import com.dynforge.be.model.dto.AdminDisputeResponse;
+import com.dynforge.be.model.dto.AdminMenteeDetail;
+import com.dynforge.be.model.dto.AdminMentorBookingItem;
+import com.dynforge.be.model.dto.AdminMentorScheduleOverview;
 import com.dynforge.be.model.dto.AdminTransactionResponse;
 import com.dynforge.be.model.dto.BookingResponse;
 import com.dynforge.be.model.dto.CommissionReportResponse;
@@ -13,6 +16,7 @@ import com.dynforge.be.model.dto.UserResponse;
 import com.dynforge.be.model.entity.Booking;
 import com.dynforge.be.model.entity.EscrowTransaction;
 import com.dynforge.be.model.entity.MentorProfile;
+import com.dynforge.be.model.entity.University;
 import com.dynforge.be.model.entity.User;
 import com.dynforge.be.model.entity.WalletTransaction;
 import com.dynforge.be.model.enums.BookingStatus;
@@ -24,6 +28,7 @@ import com.dynforge.be.model.enums.VerificationStatus;
 import com.dynforge.be.repository.BookingRepository;
 import com.dynforge.be.repository.EscrowTransactionRepository;
 import com.dynforge.be.repository.MentorRepository;
+import com.dynforge.be.repository.UniversityRepository;
 import com.dynforge.be.repository.UserRepository;
 import com.dynforge.be.repository.VerificationRepository;
 import com.dynforge.be.repository.WalletTransactionRepository;
@@ -31,10 +36,12 @@ import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +49,12 @@ import java.util.stream.Collectors;
 public class AdminService {
 
     private static final double DEFAULT_COMMISSION_RATE = 0.15;
+
+    private static final Set<BookingStatus> UPCOMING_STATUSES =
+            EnumSet.of(BookingStatus.ESCROW_HELD, BookingStatus.ACCEPTED, BookingStatus.TAUGHT);
+
+    private static final Set<BookingStatus> CANCELLED_STATUSES =
+            EnumSet.of(BookingStatus.CANCELLED, BookingStatus.DISPUTED, BookingStatus.REFUNDED);
 
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
@@ -51,6 +64,7 @@ public class AdminService {
     private final UserMapper userMapper;
     private final BookingMapper bookingMapper;
     private final MentorRepository mentorRepository;
+    private final UniversityRepository universityRepository;
 
     // ── dashboard ─────────────────────────────────────────────────────────────
 
@@ -140,6 +154,128 @@ public class AdminService {
     // ── mentor bookings & mentees ─────────────────────────────────────────────
 
     public List<BookingResponse> getMentorBookings(String id) {
+        ObjectId mentorUserId = resolveMentorUserId(id);
+
+        return bookingRepository.findByMentorId(mentorUserId).stream()
+                .sorted(Comparator.comparing(Booking::getStartAt).reversed())
+                .map(bookingMapper::toResponse)
+                .toList();
+    }
+
+    public AdminMentorScheduleOverview getMentorScheduleOverview(String id) {
+        ObjectId mentorUserId = resolveMentorUserId(id);
+
+        // Fetch mentor info
+        User mentorUser = userRepository.findById(mentorUserId.toHexString()).orElse(null);
+        MentorProfile mentorProfile = mentorRepository.findByUserId(mentorUserId).orElse(null);
+
+        String mentorName = mentorUser != null ? mentorUser.getFullName() : "Mentor";
+        String mentorAvatarUrl = mentorUser != null ? mentorUser.getAvatarUrl() : null;
+        String mentorRole = mentorProfile != null && mentorProfile.getTeachingRole() != null
+                ? mentorProfile.getTeachingRole() : "Mentor";
+        String university = mentorProfile != null ? mentorProfile.getUniversity() : null;
+        String major = mentorProfile != null ? mentorProfile.getMajor() : null;
+
+        // Fetch bookings
+        List<Booking> bookings = bookingRepository.findByMentorId(mentorUserId).stream()
+                .sorted(Comparator.comparing(Booking::getStartAt).reversed())
+                .toList();
+
+        // Calculate session frequency per mentee
+        Map<ObjectId, Long> sessionCountPerMentee = bookings.stream()
+                .filter(b -> b.getMenteeId() != null)
+                .collect(Collectors.groupingBy(Booking::getMenteeId, Collectors.counting()));
+
+        // Cache universities for fast lookup
+        Map<String, University> universityMap = universityRepository.findAll().stream()
+                .collect(Collectors.toMap(University::getId, u -> u, (a, b) -> a));
+
+        // Map sessions with full mentee profile
+        List<AdminMentorBookingItem> sessionItems = new ArrayList<>();
+        for (Booking b : bookings) {
+            AdminMenteeDetail menteeDetail = null;
+            if (b.getMenteeId() != null) {
+                User mentee = userRepository.findById(b.getMenteeId().toHexString()).orElse(null);
+                if (mentee != null) {
+                    University univ = mentee.getUniversityId() != null
+                            ? universityMap.get(mentee.getUniversityId().toHexString()) : null;
+                    String univName = univ != null ? univ.getName() : null;
+                    String univCode = univ != null ? univ.getCode() : null;
+                    int countWithMentor = sessionCountPerMentee.getOrDefault(b.getMenteeId(), 0L).intValue();
+
+                    menteeDetail = new AdminMenteeDetail(
+                            mentee.getId(),
+                            mentee.getFullName(),
+                            mentee.getEmail(),
+                            mentee.getPhone(),
+                            mentee.getStudentId(),
+                            mentee.getMajor(),
+                            univName,
+                            univCode,
+                            mentee.getYear(),
+                            mentee.getAvatarUrl(),
+                            mentee.getSchoolEmail(),
+                            mentee.isSchoolVerified(),
+                            mentee.getStatus(),
+                            mentee.getCreatedAt(),
+                            countWithMentor
+                    );
+                }
+            }
+
+            sessionItems.add(new AdminMentorBookingItem(
+                    b.getId(),
+                    b.getCourseCode(),
+                    b.getFormat(),
+                    b.getStartAt(),
+                    b.getDurationMin(),
+                    b.getPrice(),
+                    b.getCommissionRate(),
+                    b.getStatus(),
+                    b.getCreatedAt(),
+                    b.getAcceptedAt(),
+                    b.getTaughtAt(),
+                    b.getEffectiveRoomId(),
+                    b.getDisputeIssueType(),
+                    b.getDisputeReason(),
+                    menteeDetail
+            ));
+        }
+
+        int totalSessions = bookings.size();
+        int uniqueMenteesCount = sessionCountPerMentee.size();
+        long totalRevenue = bookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
+                .mapToLong(Booking::getPrice)
+                .sum();
+        int upcomingCount = (int) bookings.stream()
+                .filter(b -> UPCOMING_STATUSES.contains(b.getStatus()))
+                .count();
+        int completedCount = (int) bookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
+                .count();
+        int cancelledCount = (int) bookings.stream()
+                .filter(b -> CANCELLED_STATUSES.contains(b.getStatus()))
+                .count();
+
+        return new AdminMentorScheduleOverview(
+                mentorUserId.toHexString(),
+                mentorName,
+                mentorAvatarUrl,
+                mentorRole,
+                university,
+                major,
+                totalSessions,
+                uniqueMenteesCount,
+                totalRevenue,
+                upcomingCount,
+                completedCount,
+                cancelledCount,
+                sessionItems
+        );
+    }
+
+    private ObjectId resolveMentorUserId(String id) {
         ObjectId targetId;
         try {
             targetId = new ObjectId(id);
@@ -147,16 +283,11 @@ public class AdminService {
             throw new BadRequestException("Invalid ID: " + id);
         }
 
-        ObjectId mentorUserId = targetId;
         MentorProfile profile = mentorRepository.findById(id).orElse(null);
         if (profile != null && profile.getUserId() != null) {
-            mentorUserId = profile.getUserId();
+            return profile.getUserId();
         }
-
-        return bookingRepository.findByMentorId(mentorUserId).stream()
-                .sorted(Comparator.comparing(Booking::getStartAt).reversed())
-                .map(bookingMapper::toResponse)
-                .toList();
+        return targetId;
     }
 
     // ── internals ────────────────────────────────────────────────────────────
