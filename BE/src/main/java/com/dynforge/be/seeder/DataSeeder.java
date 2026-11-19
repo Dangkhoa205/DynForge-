@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -77,15 +78,28 @@ public class DataSeeder implements CommandLineRunner {
             log.info("[DataSeeder] Cleaned up demo account: {}", u.getEmail());
         }
 
-        // Cleanup any orphaned mentor profiles
+        // ── Clean up orphaned records (whose users were deleted) ─────────────
+        Set<String> existingUserIds = userRepository.findAll().stream()
+                .map(User::getId)
+                .collect(Collectors.toSet());
+
+        // Cleanup orphaned mentor profiles
         mentorRepository.findAll().forEach(mp -> {
-            if (mp.getUserId() == null || userRepository.findById(mp.getUserId().toHexString()).isEmpty()) {
+            if (mp.getUserId() == null || !existingUserIds.contains(mp.getUserId().toHexString())) {
                 mentorRepository.delete(mp);
                 log.info("[DataSeeder] Cleaned up orphaned mentor profile: id={}", mp.getId());
             }
         });
 
-        log.info("[DataSeeder] Mentor cleanup complete. Only real mentors and admin@dynforge.vn exist.");
+        // Cleanup orphaned verification requests
+        verificationRepository.findAll().forEach(vr -> {
+            if (vr.getUserId() == null || !existingUserIds.contains(vr.getUserId().toHexString())) {
+                verificationRepository.delete(vr);
+                log.info("[DataSeeder] Cleaned up orphaned verification request: id={}", vr.getId());
+            }
+        });
+
+        log.info("[DataSeeder] Orphan cleanup complete. Only real mentors, verifications, and admin@dynforge.vn exist.");
     }
 
     private User createUser(String fullName, String email, Set<Role> roles,

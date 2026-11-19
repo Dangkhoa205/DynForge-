@@ -154,7 +154,9 @@ export function AdminVerification() {
                           className="size-9 rounded-xl object-cover"
                         />
                         <div>
-                          <p style={{ fontWeight: 500 }}>{item.userName ?? item.userId}</p>
+                          <p style={{ fontWeight: 500 }} className={!item.userName ? 'text-muted-foreground italic' : ''}>
+                            {item.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}
+                          </p>
                           <p className="text-xs text-muted-foreground">{item.userId.slice(0, 8)}…</p>
                         </div>
                       </div>
@@ -194,7 +196,7 @@ export function AdminVerification() {
         <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setRejectNote(''); }}>
           <DialogContent className="max-w-lg" aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>{vi ? 'Xét duyệt' : 'Review'}: {selected.userName ?? selected.userId}</DialogTitle>
+              <DialogTitle>{vi ? 'Xét duyệt' : 'Review'}: {selected.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -204,7 +206,9 @@ export function AdminVerification() {
                   className="size-14 rounded-xl object-cover"
                 />
                 <div>
-                  <p style={{ fontWeight: 600 }}>{selected.userName ?? selected.userId}</p>
+                  <p style={{ fontWeight: 600 }} className={!selected.userName ? 'text-muted-foreground italic' : ''}>
+                    {selected.userName || (vi ? '[Tài khoản đã bị xóa]' : '[Deleted User]')}
+                  </p>
                   <p className="text-sm text-muted-foreground">{vi ? 'Đăng ký môn:' : 'Applied for:'} <strong>{selected.course}</strong></p>
                 </div>
               </div>
