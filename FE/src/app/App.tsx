@@ -5,7 +5,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { UniversityProvider } from './context/UniversityContext';
 import { PublicLayout } from './components/layouts/PublicLayout';
 import { DashboardLayout } from './components/layouts/DashboardLayout';
-import { RoleRoute, ProtectedRoute } from './components/RouteGuards';
+import { RoleRoute, ProtectedRoute, MentorVerifiedRoute } from './components/RouteGuards';
 
 // Public pages
 import { Home } from './pages/Home';
@@ -140,20 +140,28 @@ const router = createBrowserRouter([
       {
         element: <DashboardLayout role="teacher" />,
         children: [
-          { path: '/mentor/dashboard', element: <TeacherDashboard /> },
-          { path: '/mentor/sessions', element: <TeacherSessions /> },
-          { path: '/mentor/calendar', element: <TeacherCalendar /> },
-          { path: '/mentor/availability', element: <TeacherAvailability /> },
-          { path: '/mentor/messages', element: <Messages role="mentor" /> },
-          { path: '/mentor/earnings', element: <TeacherEarnings /> },
-          { path: '/mentor/wallet', element: <Navigate to="/mentor/earnings" replace /> },
-          { path: '/mentor/withdraw', element: <Navigate to="/mentor/earnings" replace /> },
-          { path: '/mentor/unlock-withdraw', element: <MentorUnlockWithdraw /> },
-          { path: '/mentor/vouchers', element: <MentorVouchers /> },
-          { path: '/mentor/disputes', element: <TeacherDisputes /> },
-          { path: '/mentor/profile', element: <TeacherProfile /> },
+          // Open for unverified mentors (verification status & profile setup)
           { path: '/mentor/verification', element: <TeacherVerification /> },
+          { path: '/mentor/profile', element: <TeacherProfile /> },
           { path: '/mentor/settings', element: <TeacherSettings /> },
+
+          // Locked routes: Requires Admin Approval (mentorVerified: true)
+          {
+            element: <MentorVerifiedRoute />,
+            children: [
+              { path: '/mentor/dashboard', element: <TeacherDashboard /> },
+              { path: '/mentor/sessions', element: <TeacherSessions /> },
+              { path: '/mentor/calendar', element: <TeacherCalendar /> },
+              { path: '/mentor/availability', element: <TeacherAvailability /> },
+              { path: '/mentor/messages', element: <Messages role="mentor" /> },
+              { path: '/mentor/earnings', element: <TeacherEarnings /> },
+              { path: '/mentor/wallet', element: <Navigate to="/mentor/earnings" replace /> },
+              { path: '/mentor/withdraw', element: <Navigate to="/mentor/earnings" replace /> },
+              { path: '/mentor/unlock-withdraw', element: <MentorUnlockWithdraw /> },
+              { path: '/mentor/vouchers', element: <MentorVouchers /> },
+              { path: '/mentor/disputes', element: <TeacherDisputes /> },
+            ],
+          },
 
           // Legacy /teacher/* → redirect to /mentor/*
           { path: '/teacher', element: <Navigate to="/mentor/dashboard" replace /> },

@@ -369,8 +369,12 @@ export function TeacherVerification() {
             <div>
               <p className="text-warning" style={{ fontWeight: 600 }}>{vi ? 'Hồ sơ đang được xét duyệt' : 'Application under review'}</p>
               <p className="text-sm text-muted-foreground">
-                {vi ? <>Các môn học của bạn đã được lưu và gửi cho <strong>{existing.course}</strong> ({existing.claimedGrade}). DynForge sẽ xét duyệt trong 2–3 ngày làm việc.</>
+                {vi ? <>Các môn học của bạn đã được lưu và gửi cho <strong>{existing.course}</strong> ({existing.claimedGrade}). Ban quản trị DynForge sẽ xét duyệt trong 2–3 ngày làm việc.</>
                     : <>Your courses have been saved and submitted for <strong>{existing.course}</strong> ({existing.claimedGrade}). DynForge will review within 2–3 business days.</>}
+              </p>
+              <p className="text-xs text-amber-400/90 mt-2 font-medium">
+                {vi ? '🔒 Sau khi hồ sơ được phê duyệt, Bảng điều khiển giảng dạy, Quản lý lịch dạy và Thu nhập sẽ tự động được mở khóa.'
+                    : '🔒 Teaching dashboard, session management, and earnings will unlock automatically once approved.'}
               </p>
             </div>
           </div>

@@ -17,6 +17,7 @@ export interface UserProfile {
   walletBalance: number;
   status: string;
   createdAt: string;
+  mentorVerified?: boolean;
 }
 
 export interface UpdateProfilePayload {
