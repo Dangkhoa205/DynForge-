@@ -30,6 +30,7 @@ export interface UpdateProfilePayload {
   avatarUrl?: string;
   birthYear?: number;
   province?: string;
+  universityCode?: string;
 }
 
 export async function getMe(): Promise<UserProfile> {

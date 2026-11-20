@@ -7,6 +7,7 @@ import com.dynforge.be.model.dto.UpdateProfileRequest;
 import com.dynforge.be.model.dto.UserResponse;
 import com.dynforge.be.model.entity.User;
 import com.dynforge.be.repository.RefreshTokenRepository;
+import com.dynforge.be.repository.UniversityRepository;
 import com.dynforge.be.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.bson.types.ObjectId;
@@ -21,6 +22,7 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final UniversityRepository universityRepository;
 
     public UserResponse updateProfile(User user, UpdateProfileRequest request) {
         user.setFullName(request.fullName());
@@ -31,6 +33,9 @@ public class UserService {
         if (request.birthYear() != null) {
             user.setBirthYear(request.birthYear());
         }
+        if (request.universityCode() != null && !request.universityCode().isBlank()) {
+            changeUniversity(user, request.universityCode().trim());
+        }
         if (request.province() != null) {
             user.setProvince(request.province().isBlank() ? null : request.province().trim());
         }
@@ -38,6 +43,24 @@ public class UserService {
             user.setAvatarUrl(request.avatarUrl());
         }
         return userMapper.toResponse(userRepository.save(user));
+    }
+
+    /**
+     * Lets a user pick/correct their university from the profile. A university proven with a school
+     * email (schoolVerified) cannot be changed here — that would bypass the verification.
+     */
+    private void changeUniversity(User user, String code) {
+        var university = universityRepository.findByCode(code)
+                .orElseThrow(() -> new BadRequestException("Trường không hợp lệ: " + code));
+        ObjectId newId = new ObjectId(university.getId());
+        if (newId.equals(user.getUniversityId())) {
+            return;
+        }
+        if (user.isSchoolVerified()) {
+            throw new BadRequestException("Trường của bạn đã được xác minh bằng email trường nên không thể tự đổi. "
+                    + "Vui lòng liên hệ DynForge nếu cần thay đổi.");
+        }
+        user.setUniversityId(newId);
     }
 
     public void changePassword(User user, ChangePasswordRequest request) {
