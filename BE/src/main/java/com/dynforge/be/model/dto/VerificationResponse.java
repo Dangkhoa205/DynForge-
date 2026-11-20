@@ -19,6 +19,8 @@ public record VerificationResponse(
         String reviewedBy,
         Instant reviewedAt,
         String note,
-        Instant createdAt
+        Instant createdAt,
+        /** All uploaded documents: "category|doc:<fileId>:<fileName>". */
+        java.util.List<String> documents
 ) {
 }

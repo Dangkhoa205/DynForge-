@@ -39,6 +39,20 @@ public class VerificationService {
     public VerificationResponse submit(User user, VerificationRequestDto dto) {
         validateDocumentProof(dto.transcriptUrl(), "transcriptUrl");
         validateDocumentProof(dto.alumniProofUrl(), "alumniProofUrl");
+        java.util.List<String> documents = new java.util.ArrayList<>();
+        if (dto.documents() != null) {
+            for (String entry : dto.documents()) {
+                if (entry == null || entry.isBlank()) continue;
+                int bar = entry.indexOf('|');
+                String category = bar > 0 ? entry.substring(0, bar).trim() : "other";
+                String ref = bar > 0 ? entry.substring(bar + 1).trim() : entry.trim();
+                if (!category.matches("[a-zA-Z_-]{1,30}")) {
+                    throw new BadRequestException("documents: loại tài liệu không hợp lệ.");
+                }
+                validateDocumentProof(ref, "documents");
+                documents.add(category + "|" + ref);
+            }
+        }
 
         VerificationRequest request = VerificationRequest.builder()
                 .userId(new ObjectId(user.getId()))
@@ -47,6 +61,7 @@ public class VerificationService {
                 .claimedGrade(dto.claimedGrade())
                 .transcriptUrl(dto.transcriptUrl())
                 .alumniProofUrl(dto.alumniProofUrl())
+                .documents(documents)
                 .status(VerificationStatus.PENDING)
                 .createdAt(Instant.now())
                 .build();

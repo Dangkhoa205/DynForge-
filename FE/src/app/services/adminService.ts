@@ -170,3 +170,51 @@ export async function toggleAdminMentorCourseVerification(
   );
   return data.data as MentorProfileResponse;
 }
+
+// ── Insights (user demographics + feedback) ─────────────────────────────────
+export interface InsightBucket { label: string; count: number }
+
+export interface Demographics {
+  totalUsers: number;
+  mentees: number;
+  mentors: number;
+  ageGroups: InsightBucket[];
+  majors: InsightBucket[];
+  universities: InsightBucket[];
+  provinces: InsightBucket[];
+  profilesWithAge: number;
+  profilesWithProvince: number;
+}
+
+export interface FeedbackReview {
+  id: string;
+  createdAt: string;
+  rating: number;
+  comment?: string;
+  courseCode?: string;
+  bookingId?: string;
+  menteeId?: string;
+  menteeName?: string;
+  mentorId?: string;
+  mentorName?: string;
+}
+
+export interface MentorRating { mentorId: string; mentorName?: string; averageRating: number; reviewCount: number }
+
+export interface FeedbackReport {
+  totalReviews: number;
+  averageRating: number;
+  ratingDistribution: InsightBucket[];
+  mentorRatings: MentorRating[];
+  reviews: FeedbackReview[];
+}
+
+export async function getDemographics(role?: 'MENTEE' | 'MENTOR'): Promise<Demographics> {
+  const { data } = await api.get('/api/admin/insights/demographics', { params: role ? { role } : {} });
+  return data.data as Demographics;
+}
+
+export async function getFeedbackReport(): Promise<FeedbackReport> {
+  const { data } = await api.get('/api/admin/insights/feedback');
+  return data.data as FeedbackReport;
+}

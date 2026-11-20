@@ -28,6 +28,12 @@ public class UserService {
         user.setStudentId(request.studentId());
         user.setMajor(request.major());
         user.setYear(request.year());
+        if (request.birthYear() != null) {
+            user.setBirthYear(request.birthYear());
+        }
+        if (request.province() != null) {
+            user.setProvince(request.province().isBlank() ? null : request.province().trim());
+        }
         if (request.avatarUrl() != null) {
             user.setAvatarUrl(request.avatarUrl());
         }

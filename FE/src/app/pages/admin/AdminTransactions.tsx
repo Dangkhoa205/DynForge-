@@ -31,6 +31,26 @@ const typeColor: Record<string, string> = {
   COMMISSION: 'bg-success/10 text-success border-success/20',
 };
 
+/** Short, human-friendly codes instead of raw database ids. */
+const txnCode = (id: string) => `GD${id.slice(-8).toUpperCase()}`;
+const bookingCode = (id: string) => `BK${id.slice(-8).toUpperCase()}`;
+
+/** Readable description: booking ids become booking codes (BK…), known types get a Vietnamese label. */
+function describeTxn(t: AdminTransaction, vi: boolean): string {
+  const bk = t.relatedBookingId ? bookingCode(t.relatedBookingId) : null;
+  if (vi) {
+    switch (t.type) {
+      case 'PAYMENT': return bk ? `Thanh toán buổi học ${bk}` : 'Thanh toán buổi học';
+      case 'PAYOUT': return bk ? `Chi trả cho mentor · ${bk}` : 'Chi trả cho mentor';
+      case 'REFUND': return bk ? `Hoàn tiền buổi học ${bk}` : 'Hoàn tiền';
+      case 'COMMISSION': return bk ? `Hoa hồng nền tảng · ${bk}` : 'Hoa hồng nền tảng';
+      case 'TOPUP': return bk ? `Thanh toán PayOS cho ${bk}` : 'Nạp tiền vào ví';
+      default: break;
+    }
+  }
+  return (t.description ?? '').replace(/\b[0-9a-f]{24}\b/gi, (id) => bookingCode(id));
+}
+
 function DetailRow({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
@@ -67,12 +87,13 @@ function TransactionDetail({ txn, user, onClose }: { txn: AdminTransaction; user
 
         <section className="rounded-xl border border-border p-4">
           <h3 className="mb-2 text-sm font-semibold">{vi ? 'Giao dịch' : 'Transaction'}</h3>
-          <DetailRow label={vi ? 'Mã giao dịch' : 'Transaction ID'} value={txn.id} />
+          <DetailRow label={vi ? 'Mã giao dịch' : 'Transaction code'} value={<span className="font-mono">{txnCode(txn.id)}</span>} />
+          <DetailRow label={vi ? 'Mã hệ thống' : 'System ID'} value={<span className="font-mono text-xs text-muted-foreground">{txn.id}</span>} />
           <DetailRow label={vi ? 'Loại' : 'Type'} value={<Badge className={`border ${typeColor[txn.type] ?? 'border-border'}`}>{txn.type}</Badge>} />
           <DetailRow label={vi ? 'Số tiền' : 'Amount'} value={formatCurrency(txn.amount)} />
           <DetailRow label={vi ? 'Trạng thái' : 'Status'} value={<StatusBadge status={txn.status} />} />
           <DetailRow label={vi ? 'Thời gian' : 'Time'} value={formatDateTime(txn.createdAt, lang)} />
-          <DetailRow label={vi ? 'Mô tả' : 'Description'} value={txn.description} />
+          <DetailRow label={vi ? 'Mô tả' : 'Description'} value={describeTxn(txn, vi)} />
         </section>
 
         <section className="rounded-xl border border-border p-4">
@@ -104,7 +125,7 @@ function TransactionDetail({ txn, user, onClose }: { txn: AdminTransaction; user
               <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {vi ? 'Đang tải…' : 'Loading…'}</p>
             ) : booking ? (
               <>
-                <DetailRow label={vi ? 'Mã buổi học' : 'Booking ID'} value={booking.id} />
+                <DetailRow label={vi ? 'Mã buổi học' : 'Booking code'} value={<span className="font-mono">{bookingCode(booking.id)}</span>} />
                 <DetailRow label={vi ? 'Môn học' : 'Course'} value={booking.courseCode} />
                 <DetailRow label="Mentee" value={booking.menteeName} />
                 <DetailRow label="Mentor" value={booking.mentorName} />
@@ -147,8 +168,10 @@ export function AdminTransactions() {
     return txns.filter((t) => {
       const q = query.toLowerCase();
       const matchQ = !q || t.id.toLowerCase().includes(q)
+        || txnCode(t.id).toLowerCase().includes(q)
+        || (t.relatedBookingId ? bookingCode(t.relatedBookingId).toLowerCase().includes(q) : false)
         || (t.userName ?? '').toLowerCase().includes(q)
-        || (t.description ?? '').toLowerCase().includes(q);
+        || describeTxn(t, vi).toLowerCase().includes(q);
       const matchT = typeFilter === 'All' || t.type === typeFilter;
       return matchQ && matchT;
     });
@@ -168,7 +191,7 @@ export function AdminTransactions() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={vi ? 'Tìm theo mã, người dùng hoặc mô tả' : 'Search by ID, user, or description'}
+              placeholder={vi ? 'Tìm theo mã GD/BK, người dùng hoặc mô tả' : 'Search by GD/BK code, user, or description'}
               className="bg-input-background pl-9"
             />
           </div>
@@ -191,6 +214,7 @@ export function AdminTransactions() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>{vi ? 'Mã GD' : 'Code'}</TableHead>
                     <TableHead>{vi ? 'Người dùng' : 'User'}</TableHead>
                     <TableHead>{vi ? 'Loại' : 'Type'}</TableHead>
                     <TableHead>{vi ? 'Mô tả' : 'Description'}</TableHead>
@@ -203,9 +227,19 @@ export function AdminTransactions() {
                 <TableBody>
                   {filtered.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell style={{ fontWeight: 500 }}>{t.userName ?? t.userId.slice(0, 8)}</TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          title={vi ? 'Bấm để sao chép mã' : 'Click to copy'}
+                          onClick={() => { navigator.clipboard?.writeText(txnCode(t.id)).catch(() => {}); toast.success(vi ? `Đã sao chép ${txnCode(t.id)}` : `Copied ${txnCode(t.id)}`); }}
+                          className="rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-muted/70"
+                        >
+                          {txnCode(t.id)}
+                        </button>
+                      </TableCell>
+                      <TableCell style={{ fontWeight: 500 }}>{t.userName ?? (vi ? 'Tài khoản đã xoá' : 'Deleted account')}</TableCell>
                       <TableCell><Badge className={`border ${typeColor[t.type] ?? 'border-border'}`}>{t.type}</Badge></TableCell>
-                      <TableCell className="max-w-[240px] truncate text-muted-foreground">{t.description}</TableCell>
+                      <TableCell className="max-w-[260px] truncate text-muted-foreground" title={describeTxn(t, vi)}>{describeTxn(t, vi)}</TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">
                         {formatDate(t.createdAt, lang, { day: '2-digit', month: 'short', year: 'numeric' })}
                       </TableCell>

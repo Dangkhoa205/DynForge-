@@ -17,6 +17,8 @@ export interface UserProfile {
   walletBalance: number;
   status: string;
   createdAt: string;
+  birthYear?: number;
+  province?: string;
 }
 
 export interface UpdateProfilePayload {
@@ -26,6 +28,8 @@ export interface UpdateProfilePayload {
   major?: string;
   year?: string;
   avatarUrl?: string;
+  birthYear?: number;
+  province?: string;
 }
 
 export async function getMe(): Promise<UserProfile> {

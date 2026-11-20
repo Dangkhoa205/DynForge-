@@ -47,6 +47,8 @@ const t = {
     partnerships: 'Ad & Partnerships',
     reports: 'Reports',
     auditLogs: 'Audit Logs',
+    userInsights: 'User demographics',
+    userFeedback: 'User feedback',
 
     // ── Home ─────────────────────────────────────────────────
     heroTitle: "Don't let challenges hold you back — connect with a mentor from your school now!",
@@ -572,6 +574,8 @@ const t = {
     partnerships: 'Quảng cáo & Đối tác',
     reports: 'Báo cáo',
     auditLogs: 'Nhật ký hoạt động',
+    userInsights: 'Chân dung người dùng',
+    userFeedback: 'Phản hồi người dùng',
 
     // ── Home ─────────────────────────────────────────────────
     heroTitle: 'Đừng để khó khăn cản bước, kết nối ngay với Mentor cùng trường!',

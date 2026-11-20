@@ -58,6 +58,8 @@ import { AdminPayouts } from './pages/admin/AdminPayouts';
 import { AdminVouchers } from './pages/admin/AdminVouchers';
 import { AdminDisputes } from './pages/admin/AdminDisputes';
 import { AdminAuditLogs } from './pages/admin/AdminAuditLogs';
+import { AdminUserInsights } from './pages/admin/AdminUserInsights';
+import { AdminFeedback } from './pages/admin/AdminFeedback';
 import { AdminRecordings } from './pages/admin/AdminRecordings';
 import { AdminPartnership } from './pages/admin/AdminPartnership';
 
@@ -195,6 +197,8 @@ const router = createBrowserRouter([
           { path: '/admin/reports', element: <AdminOverview /> },
           { path: '/admin/settings', element: <DashboardSettings /> },
           { path: '/admin/audit-logs', element: <AdminAuditLogs /> },
+          { path: '/admin/user-insights', element: <AdminUserInsights /> },
+          { path: '/admin/feedback', element: <AdminFeedback /> },
 
           // Legacy aliases
           { path: '/admin/verification', element: <Navigate to="/admin/mentor-verification" replace /> },

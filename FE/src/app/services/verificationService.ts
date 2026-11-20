@@ -16,6 +16,8 @@ export interface VerificationItem {
   reviewedAt?: string;
   note?: string;
   createdAt: string;
+  /** Every uploaded document: "category|doc:<fileId>:<fileName>" (transcript, certificate, portfolio, id). */
+  documents?: string[];
 }
 
 export interface SubmitVerificationPayload {
@@ -23,6 +25,7 @@ export interface SubmitVerificationPayload {
   claimedGrade: 'A' | 'A+';
   transcriptUrl?: string;
   alumniProofUrl?: string;
+  documents?: string[];
 }
 
 export async function submitVerification(payload: SubmitVerificationPayload): Promise<VerificationItem> {

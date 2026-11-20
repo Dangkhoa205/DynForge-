@@ -292,20 +292,25 @@ export function TeacherVerification() {
         const primaryDoc = (uploadedFiles['transcript'] ?? [])[0] ?? allUploaded[0];
         const alumniDoc = (uploadedFiles['id'] ?? [])[0] ?? (uploadedFiles['certificate'] ?? [])[0];
 
-        // Upload the actual files so the admin can open them (previously only the file name was saved).
-        const uploadRef = async (doc?: UploadedFile) => {
-          if (!doc) return undefined;
-          if (!doc.file) return doc.name;
-          return (await uploadVerificationDocument(doc.file)).ref;
-        };
-        const transcriptRef = await uploadRef(primaryDoc);
-        const alumniRef = alumniDoc && alumniDoc !== primaryDoc ? await uploadRef(alumniDoc) : undefined;
+        // Upload every attached file (all categories, all files) so the admin can open each one.
+        const refByFile = new Map<UploadedFile, string>();
+        const documents: string[] = [];
+        for (const [category, files] of Object.entries(uploadedFiles)) {
+          for (const f of files) {
+            const ref = f.file ? (await uploadVerificationDocument(f.file)).ref : f.name;
+            refByFile.set(f, ref);
+            documents.push(`${category}|${ref}`);
+          }
+        }
+        const transcriptRef = primaryDoc ? refByFile.get(primaryDoc) : undefined;
+        const alumniRef = alumniDoc && alumniDoc !== primaryDoc ? refByFile.get(alumniDoc) : undefined;
 
         const result = await submitVerification({
           course: valid[0].code,
           claimedGrade: valid[0].grade,
           transcriptUrl: transcriptRef,
           alumniProofUrl: alumniRef,
+          documents,
         });
         setExisting(result);
         toast.success(vi ? 'Đã gửi hồ sơ! DynForge sẽ xét duyệt trong 2–3 ngày làm việc.' : 'Application submitted! DynForge will review within 2–3 business days.');

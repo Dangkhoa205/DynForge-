@@ -33,7 +33,9 @@ public class UserMapper {
                 user.isSchoolVerified(),
                 user.getWalletBalance(),
                 user.getStatus(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getBirthYear(),
+                user.getProvince()
         );
     }
 }

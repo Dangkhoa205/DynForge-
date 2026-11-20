@@ -550,6 +550,31 @@ export function AdminVerification() {
                     </div>
                   )}
 
+                  {(selected.documents?.length ?? 0) > 0 && (
+                    <div className="rounded-xl border border-border p-3.5 space-y-2 bg-card/40">
+                      <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <FileText className="size-3.5 text-primary" />
+                        {vi ? `Tất cả giấy tờ đã nộp (${selected.documents!.length})` : `All submitted documents (${selected.documents!.length})`}
+                      </p>
+                      <ul className="space-y-1.5">
+                        {selected.documents!.map((entry, i) => {
+                          const bar = entry.indexOf('|');
+                          const category = bar > 0 ? entry.slice(0, bar) : 'other';
+                          const ref = bar > 0 ? entry.slice(bar + 1) : entry;
+                          const label: Record<string, string> = vi
+                            ? { transcript: 'Bảng điểm', certificate: 'Chứng chỉ', portfolio: 'Portfolio', id: 'Thẻ SV/CB', other: 'Khác' }
+                            : { transcript: 'Transcript', certificate: 'Certificate', portfolio: 'Portfolio', id: 'ID card', other: 'Other' };
+                          return (
+                            <li key={`${ref}-${i}`} className="flex items-center gap-2">
+                              <span className="w-20 shrink-0 text-[11px] text-muted-foreground">{label[category] ?? category}</span>
+                              <DocumentLink value={ref} vi={vi} />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+
                   <div className="text-[11px] text-muted-foreground font-mono pt-1">
                     {vi ? 'Ngày nộp:' : 'Submitted:'} {formatDate(selected.createdAt, lang)}
                   </div>

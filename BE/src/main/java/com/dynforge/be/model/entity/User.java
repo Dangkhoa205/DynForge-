@@ -49,6 +49,12 @@ public class User {
 
     private String year;
 
+    /** Optional, for user-demographics statistics (admin). */
+    private Integer birthYear;
+
+    /** Province / city the user lives in (optional, for statistics). */
+    private String province;
+
     private String avatarUrl;
 
     /** Verified school email (unique across users once verified). */

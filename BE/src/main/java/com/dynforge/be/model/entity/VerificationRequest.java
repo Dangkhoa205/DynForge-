@@ -53,6 +53,9 @@ public class VerificationRequest {
      */
     private String alumniProofUrl;
 
+    /** Every uploaded document, as "category|doc:<fileId>:<fileName>" (transcript, id, certificate, …). */
+    private java.util.List<String> documents;
+
     @Builder.Default
     private VerificationStatus status = VerificationStatus.PENDING;
 

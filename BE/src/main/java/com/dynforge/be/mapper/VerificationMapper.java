@@ -29,7 +29,8 @@ public class VerificationMapper {
                 request.getReviewedBy() != null ? request.getReviewedBy().toHexString() : null,
                 request.getReviewedAt(),
                 request.getNote(),
-                request.getCreatedAt()
+                request.getCreatedAt(),
+                request.getDocuments() == null ? java.util.List.of() : request.getDocuments()
         );
     }
 }
