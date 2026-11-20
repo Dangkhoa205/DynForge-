@@ -46,8 +46,9 @@ public class UserService {
     }
 
     /**
-     * Lets a user pick/correct their university from the profile. A university proven with a school
-     * email (schoolVerified) cannot be changed here — that would bypass the verification.
+     * Lets any user pick/change their university freely from the profile (no verification needed).
+     * If the old school had been confirmed by school email, that badge no longer applies to the new
+     * school, so the flag is cleared.
      */
     private void changeUniversity(User user, String code) {
         var university = universityRepository.findByCode(code)
@@ -56,11 +57,8 @@ public class UserService {
         if (newId.equals(user.getUniversityId())) {
             return;
         }
-        if (user.isSchoolVerified()) {
-            throw new BadRequestException("Trường của bạn đã được xác minh bằng email trường nên không thể tự đổi. "
-                    + "Vui lòng liên hệ DynForge nếu cần thay đổi.");
-        }
         user.setUniversityId(newId);
+        user.setSchoolVerified(false);
     }
 
     public void changePassword(User user, ChangePasswordRequest request) {

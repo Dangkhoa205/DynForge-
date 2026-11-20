@@ -87,7 +87,6 @@ export function DashboardProfile() {
   const [birthYear, setBirthYear] = useState('');
   const [province, setProvince] = useState('');
   const [universityCode, setUniversityCode] = useState('');
-  const [schoolVerified, setSchoolVerified] = useState(false);
   const { universities } = useUniversity();
   const [avatarUrl, setAvatarUrl] = useState('');
 
@@ -103,7 +102,6 @@ export function DashboardProfile() {
         setBirthYear(me.birthYear ? String(me.birthYear) : '');
         setProvince(me.province ?? '');
         setUniversityCode(me.universityCode ?? '');
-        setSchoolVerified(!!me.schoolVerified);
         setAvatarUrl(me.avatarUrl ?? '');
       })
       .catch(() => toast.error(vi ? 'Không tải được hồ sơ.' : 'Failed to load profile.'))
@@ -129,7 +127,7 @@ export function DashboardProfile() {
         avatarUrl: avatarUrl.trim() || undefined,
         birthYear: by,
         province: province || undefined,
-        universityCode: !schoolVerified && universityCode ? universityCode : undefined,
+        universityCode: universityCode || undefined,
       });
       await refreshUser();
       toast.success(vi ? 'Cập nhật hồ sơ thành công.' : 'Profile updated successfully.');
@@ -199,8 +197,7 @@ export function DashboardProfile() {
               <select
                 value={universityCode}
                 onChange={(e) => setUniversityCode(e.target.value)}
-                disabled={schoolVerified}
-                className="h-9 w-full rounded-md border border-input bg-input-background px-3 text-sm disabled:opacity-60"
+                className="h-9 w-full rounded-md border border-input bg-input-background px-3 text-sm"
               >
                 <option value="">{vi ? '— Chọn trường —' : '— Select —'}</option>
                 {[...universities]
@@ -211,11 +208,6 @@ export function DashboardProfile() {
                     </option>
                   ))}
               </select>
-              {schoolVerified && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {vi ? 'Trường đã được xác minh bằng email trường nên không đổi được.' : 'Verified with a school email — cannot be changed.'}
-                </p>
-              )}
             </div>
             <div>
               <Label className="mb-1.5 block">{vi ? 'Ngành học' : 'Major'}</Label>
