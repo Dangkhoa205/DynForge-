@@ -22,6 +22,7 @@ public record UserResponse(
         boolean schoolVerified,
         long walletBalance,
         UserStatus status,
-        Instant createdAt
+        Instant createdAt,
+        boolean mentorVerified
 ) {
 }
