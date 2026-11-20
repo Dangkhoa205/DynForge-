@@ -118,8 +118,7 @@ public class AdminService {
     // ── transactions ────────────────────────────────────────────────────────────
 
     public List<AdminTransactionResponse> listTransactions(TransactionType type) {
-        Map<String, String> nameById = userRepository.findAll().stream()
-                .collect(Collectors.toMap(User::getId, User::getFullName, (a, b) -> a));
+        Map<String, String> nameById = userNamesById();
 
         return walletTxnRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(t -> type == null || t.getType() == type)
@@ -130,8 +129,7 @@ public class AdminService {
     // ── disputes ────────────────────────────────────────────────────────────────
 
     public List<AdminDisputeResponse> listDisputes() {
-        Map<String, String> nameById = userRepository.findAll().stream()
-                .collect(Collectors.toMap(User::getId, User::getFullName, (a, b) -> a));
+        Map<String, String> nameById = userNamesById();
 
         return bookingRepository.findByStatus(BookingStatus.DISPUTED).stream()
                 .map(b -> toDispute(b, nameById))
@@ -379,12 +377,27 @@ public class AdminService {
         );
     }
 
+    /**
+     * id -> full name. Built with a HashMap on purpose: Collectors.toMap throws a NullPointerException
+     * as soon as ONE user has no full name (e.g. a Google sign-in without a name), which used to make
+     * the whole admin transaction / dispute list fail and show "0 giao dịch".
+     */
+    private Map<String, String> userNamesById() {
+        Map<String, String> names = new java.util.HashMap<>();
+        for (User u : userRepository.findAll()) {
+            if (u.getId() != null) {
+                names.putIfAbsent(u.getId(), u.getFullName() != null && !u.getFullName().isBlank() ? u.getFullName() : u.getEmail());
+            }
+        }
+        return names;
+    }
+
     private AdminTransactionResponse toAdminTransaction(WalletTransaction t, Map<String, String> nameById) {
-        String uid = t.getUserId().toHexString();
+        String uid = t.getUserId() != null ? t.getUserId().toHexString() : null;
         return new AdminTransactionResponse(
                 t.getId(),
                 uid,
-                nameById.get(uid),
+                uid != null ? nameById.get(uid) : null,
                 t.getType(),
                 t.getStatus(),
                 t.getAmount(),

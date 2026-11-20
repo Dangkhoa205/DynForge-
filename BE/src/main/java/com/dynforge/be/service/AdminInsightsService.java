@@ -58,8 +58,10 @@ public class AdminInsightsService {
                 .toList();
 
         Map<String, String> uniNames = universityRepository.findAll().stream()
+                .filter(u -> u.getId() != null)
                 .collect(Collectors.toMap(University::getId,
-                        u -> u.getShortName() != null && !u.getShortName().isBlank() ? u.getShortName() : u.getName(),
+                        u -> u.getShortName() != null && !u.getShortName().isBlank() ? u.getShortName()
+                                : (u.getName() != null ? u.getName() : u.getCode() != null ? u.getCode() : "—"),
                         (a, b) -> a));
 
         int currentYear = Year.now().getValue();
@@ -92,6 +94,7 @@ public class AdminInsightsService {
                 .sorted(Comparator.comparing(Review::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
         Map<String, String> names = userRepository.findAll().stream()
+                .filter(u -> u.getId() != null)
                 .collect(Collectors.toMap(User::getId,
                         u -> u.getFullName() == null ? "" : u.getFullName(), (a, b) -> a));
         // Review.mentorId may hold the mentor's user id or the mentor-profile id: resolve both.

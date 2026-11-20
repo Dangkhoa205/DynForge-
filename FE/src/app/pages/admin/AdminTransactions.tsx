@@ -152,17 +152,28 @@ export function AdminTransactions() {
   const [typeFilter, setTypeFilter] = useState('All');
   const [usersById, setUsersById] = useState<Record<string, UserProfile>>({});
   const [selected, setSelected] = useState<AdminTransaction | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    listAdminTransactions()
-      .then(setTxns)
-      .catch(() => toast.error(vi ? 'Không tải được giao dịch.' : 'Failed to load transactions.'))
-      .finally(() => setLoading(false));
+    loadTxns();
     // Users are loaded once so "Chi tiết" opens instantly.
     listAdminUsers()
       .then((users) => setUsersById(Object.fromEntries(users.map((u) => [u.id, u]))))
       .catch(() => { /* details then show only the user id */ });
   }, []);
+
+  function loadTxns() {
+    setLoading(true);
+    setLoadError(null);
+    listAdminTransactions()
+      .then(setTxns)
+      .catch((err: any) => {
+        const status = err?.response?.status;
+        const msg = err?.response?.data?.message;
+        setLoadError(`${vi ? 'Không tải được giao dịch' : 'Failed to load transactions'}${status ? ` (HTTP ${status})` : ''}${msg ? `: ${msg}` : '.'}`);
+      })
+      .finally(() => setLoading(false));
+  }
 
   const filtered = useMemo(() => {
     return txns.filter((t) => {
@@ -206,6 +217,13 @@ export function AdminTransactions() {
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
             <Loader2 className="size-5 animate-spin" /> {vi ? 'Đang tải giao dịch…' : 'Loading transactions…'}
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <p className="text-sm text-danger">{loadError}</p>
+            <button type="button" onClick={loadTxns} className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted">
+              {vi ? 'Thử lại' : 'Retry'}
+            </button>
           </div>
         ) : (
           <>
