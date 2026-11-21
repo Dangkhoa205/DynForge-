@@ -78,9 +78,20 @@ function dashboardPath(role: AuthRole, mentorVerified?: boolean) {
   return '/dashboard';
 }
 
+function extractMentorVerified(userObj: any, role: AuthRole): boolean {
+  if (role !== 'mentor') return false;
+  // If the backend explicitly returned a boolean, trust it
+  if (typeof userObj?.mentorVerified === 'boolean') {
+    return userObj.mentorVerified;
+  }
+  // Backwards compatibility for environments where backend UserResponse doesn't have mentorVerified yet:
+  // Default to true so existing mentors on Azure backend are not unexpectedly locked out
+  return true;
+}
+
 function buildUserFromTokens(tokens: AuthTokens): AuthUser {
   const role = roleFromBackend(tokens.user.roles);
-  const mentorVerified = Boolean((tokens.user as any).mentorVerified);
+  const mentorVerified = extractMentorVerified(tokens.user, role);
   return {
     id: tokens.user.id,
     role,
@@ -223,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe();
       const role = roleFromBackend(me.roles);
-      const mentorVerified = Boolean(me.mentorVerified);
+      const mentorVerified = extractMentorVerified(me, role);
       const u: AuthUser = {
         id: me.id,
         role,
