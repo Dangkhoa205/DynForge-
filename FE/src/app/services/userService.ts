@@ -17,6 +17,7 @@ export interface UserProfile {
   walletBalance: number;
   status: string;
   createdAt: string;
+  mentorVerified?: boolean;
   birthYear?: number;
   province?: string;
 }

@@ -287,7 +287,7 @@ class Phase4SecurityTest {
         when(jwtService.generateToken(any())).thenReturn("mock-access-token");
         UserResponse userResponse = new UserResponse(
                 userIdStr, "John Doe", "john@example.com", "0123456789", Set.of(Role.MENTEE),
-                "SE123456", "SE", "4", null, null, null, null, false, 0L, UserStatus.ACTIVE, Instant.now()
+                "SE123456", "SE", "4", null, null, null, null, false, 0L, UserStatus.ACTIVE, Instant.now(), false
         );
         when(userMapper.toResponse(any())).thenReturn(userResponse);
 

@@ -19,6 +19,7 @@ export interface AuthUser {
   email?: string;
   avatar: string;
   dashboardPath: string;
+  mentorVerified?: boolean;
 }
 
 interface AuthCtx {
@@ -52,6 +53,7 @@ const demoProfiles: Record<AuthRole, AuthUser> = {
     name: 'Nguyễn Thị Linh',
     avatar: 'https://images.unsplash.com/photo-1531427888099-b3ecff6e1a6f?auto=format&fit=crop&w=80&q=80',
     dashboardPath: '/mentor/dashboard',
+    mentorVerified: true,
   },
   admin: {
     role: 'admin',
@@ -70,21 +72,34 @@ function roleFromBackend(roles: string[]): AuthRole {
   return 'mentee';
 }
 
-function dashboardPath(role: AuthRole) {
+function dashboardPath(role: AuthRole, mentorVerified?: boolean) {
   if (role === 'admin') return '/admin/dashboard';
-  if (role === 'mentor') return '/mentor/dashboard';
+  if (role === 'mentor') return mentorVerified ? '/mentor/dashboard' : '/mentor/verification';
   return '/dashboard';
+}
+
+function extractMentorVerified(userObj: any, role: AuthRole): boolean {
+  if (role !== 'mentor') return false;
+  // If the backend explicitly returned a boolean, trust it
+  if (typeof userObj?.mentorVerified === 'boolean') {
+    return userObj.mentorVerified;
+  }
+  // Backwards compatibility for environments where backend UserResponse doesn't have mentorVerified yet:
+  // Default to true so existing mentors on Azure backend are not unexpectedly locked out
+  return true;
 }
 
 function buildUserFromTokens(tokens: AuthTokens): AuthUser {
   const role = roleFromBackend(tokens.user.roles);
+  const mentorVerified = extractMentorVerified(tokens.user, role);
   return {
     id: tokens.user.id,
     role,
     name: tokens.user.fullName,
     email: tokens.user.email,
     avatar: tokens.user.avatarUrl ?? demoProfiles[role].avatar,
-    dashboardPath: dashboardPath(role),
+    dashboardPath: dashboardPath(role, mentorVerified),
+    mentorVerified,
   };
 }
 
@@ -219,13 +234,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await getMe();
       const role = roleFromBackend(me.roles);
+      const mentorVerified = extractMentorVerified(me, role);
       const u: AuthUser = {
         id: me.id,
         role,
         name: me.fullName,
         email: me.email,
         avatar: me.avatarUrl ?? demoProfiles[role].avatar,
-        dashboardPath: dashboardPath(role),
+        dashboardPath: dashboardPath(role, mentorVerified),
+        mentorVerified,
       };
       localStorage.setItem(USER_KEY, JSON.stringify(u));
       setUser(u);

@@ -23,6 +23,7 @@ public record UserResponse(
         long walletBalance,
         UserStatus status,
         Instant createdAt,
+        boolean mentorVerified,
         Integer birthYear,
         String province
 ) {
@@ -32,6 +33,17 @@ public record UserResponse(
                         String universityId, String universityName, String universityCode,
                         boolean schoolVerified, long walletBalance, UserStatus status, Instant createdAt) {
         this(id, fullName, email, phone, roles, studentId, major, year, avatarUrl, universityId,
-                universityName, universityCode, schoolVerified, walletBalance, status, createdAt, null, null);
+                universityName, universityCode, schoolVerified, walletBalance, status, createdAt, false, null, null);
+    }
+
+    /** Call sites (and tests) that know mentorVerified but not the demographic fields. */
+    public UserResponse(String id, String fullName, String email, String phone, Set<Role> roles,
+                        String studentId, String major, String year, String avatarUrl,
+                        String universityId, String universityName, String universityCode,
+                        boolean schoolVerified, long walletBalance, UserStatus status, Instant createdAt,
+                        boolean mentorVerified) {
+        this(id, fullName, email, phone, roles, studentId, major, year, avatarUrl, universityId,
+                universityName, universityCode, schoolVerified, walletBalance, status, createdAt,
+                mentorVerified, null, null);
     }
 }

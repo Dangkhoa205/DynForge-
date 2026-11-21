@@ -6,7 +6,7 @@ import {
   BadgeCheck, Users, FileText, BarChart3, CreditCard,
   LogOut, BookMarked, MessageSquare, Tag, Video, Menu, X,
   GraduationCap, Plus, Sparkles, ExternalLink, ChevronRight, ArrowLeftRight,
-  Megaphone, PieChart, MessageSquareText
+  Megaphone, Lock, PieChart, MessageSquareText
 } from 'lucide-react';
 import { cn } from '../ui/utils';
 import { Logo } from '../Logo';
@@ -49,6 +49,17 @@ const teacherNav: NavItem[] = [
   { to: '/mentor/profile',       labelKey: 'profile',           icon: User },
   { to: '/mentor/verification',  labelKey: 'verification',      icon: BadgeCheck },
   { to: '/mentor/settings',      labelKey: 'settings',          icon: Settings },
+];
+
+const lockedTeacherRoutes = [
+  '/mentor/dashboard',
+  '/mentor/sessions',
+  '/mentor/calendar',
+  '/mentor/availability',
+  '/mentor/messages',
+  '/mentor/earnings',
+  '/mentor/vouchers',
+  '/mentor/disputes',
 ];
 
 const adminNav: NavItem[] = [
@@ -124,8 +135,11 @@ export function DashboardLayout({ role = 'student' }: { role?: Role }) {
     : (T.studentWorkspace ?? 'Student Workspace');
 
   // A mentor account is also a mentee: let it hop between the two workspaces.
+  const isMentorVerified = profile?.mentorVerified ?? user?.mentorVerified ?? false;
+  const isMentorPending = role === 'teacher' && !isMentorVerified;
+
   const canSwitchWorkspace = user?.role === 'mentor' && (role === 'student' || role === 'teacher');
-  const switchTo = role === 'teacher' ? '/dashboard' : '/mentor/dashboard';
+  const switchTo = role === 'teacher' ? '/dashboard' : (isMentorVerified ? '/mentor/dashboard' : '/mentor/verification');
   const switchLabel = role === 'teacher'
     ? (lang === 'vi' ? 'Chế độ học viên' : 'Mentee mode')
     : (lang === 'vi' ? 'Chế độ mentor' : 'Mentor mode');
@@ -134,9 +148,11 @@ export function DashboardLayout({ role = 'student' }: { role?: Role }) {
     : (lang === 'vi' ? 'Chuyển sang cổng mentor' : 'Switch to the mentor portal');
 
   const portalBadge =
-    role === 'teacher' ? 'Mentor'
-    : role === 'admin' ? 'Admin'
-    : 'Mentee';
+    role === 'teacher'
+      ? (isMentorPending ? (lang === 'vi' ? 'Mentor (Chờ duyệt)' : 'Mentor (Pending)') : 'Mentor')
+      : role === 'admin'
+        ? 'Admin'
+        : 'Mentee';
 
   return (
     <div className="flex min-h-screen bg-[#020b18] text-slate-100 selection:bg-cyan-500 selection:text-white relative overflow-x-hidden">
@@ -153,8 +169,16 @@ export function DashboardLayout({ role = 'student' }: { role?: Role }) {
           <Link to="/" className="flex items-center gap-2 group transition-transform hover:scale-[1.02]">
             <Logo light />
           </Link>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider text-cyan-300 uppercase">
-            <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase",
+            isMentorPending
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+              : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+          )}>
+            <span className={cn(
+              "size-1.5 rounded-full animate-pulse",
+              isMentorPending ? "bg-amber-400" : "bg-cyan-400"
+            )} />
             {portalBadge}
           </span>
         </div>
@@ -210,30 +234,56 @@ export function DashboardLayout({ role = 'student' }: { role?: Role }) {
           {nav.map((item) => {
             const Icon = item.icon;
             const label = (T as Record<string, string>)[item.labelKey] ?? item.labelKey;
+            const isLocked = isMentorPending && lockedTeacherRoutes.includes(item.to);
+            const destination = isLocked ? '/mentor/verification' : item.to;
+            const isVerificationActive = item.to === '/mentor/verification' && isMentorPending;
+
             return (
               <NavLink
                 key={item.to}
-                to={item.to}
+                to={destination}
                 end={item.end}
+                onClick={() => {
+                  if (isLocked) {
+                    toast.info(lang === 'vi' 
+                      ? 'Tính năng này đang tạm khóa. Vui lòng hoàn tất hoặc chờ Ban quản trị duyệt hồ sơ.' 
+                      : 'This feature is locked. Please wait for Admin approval.');
+                  }
+                }}
                 className={({ isActive }) =>
                   cn(
                     'group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200',
-                    isActive
+                    isActive && !isLocked
                       ? 'bg-gradient-to-r from-cyan-500/20 via-blue-500/15 to-transparent text-cyan-300 border border-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.12)] font-semibold translate-x-1'
-                      : 'text-slate-300 hover:bg-slate-900/60 hover:text-white hover:border-slate-800 border border-transparent'
+                      : isLocked
+                        ? 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/40 border border-transparent'
+                        : 'text-slate-300 hover:bg-slate-900/60 hover:text-white hover:border-slate-800 border border-transparent'
                   )
                 }
               >
                 <div className="flex items-center gap-3">
                   <span className={cn(
                     'flex size-8 items-center justify-center rounded-lg transition-colors',
-                    'bg-slate-900/80 border border-slate-800 text-slate-300 group-hover:border-cyan-500/30 group-hover:text-cyan-400 group-hover:bg-cyan-950/20'
+                    isLocked 
+                      ? 'bg-slate-950/60 border border-slate-900 text-slate-600'
+                      : 'bg-slate-900/80 border border-slate-800 text-slate-300 group-hover:border-cyan-500/30 group-hover:text-cyan-400 group-hover:bg-cyan-950/20'
                   )}>
                     <Icon className="size-4 shrink-0" />
                   </span>
-                  <span>{label}</span>
+                  <span className={isLocked ? 'text-slate-400' : ''}>{label}</span>
                 </div>
-                <ChevronRight className="size-3.5 opacity-0 -translate-x-1 text-cyan-400/70 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+                {isLocked ? (
+                  <span className="flex items-center gap-1 text-[10px] text-amber-400/80 font-medium bg-amber-500/10 border border-amber-500/20 rounded-md px-1.5 py-0.5">
+                    <Lock className="size-3" />
+                    <span className="hidden xl:inline">{lang === 'vi' ? 'Khóa' : 'Locked'}</span>
+                  </span>
+                ) : isVerificationActive ? (
+                  <span className="rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 border border-amber-500/30 animate-pulse">
+                    {lang === 'vi' ? 'Cần duyệt' : 'Pending'}
+                  </span>
+                ) : (
+                  <ChevronRight className="size-3.5 opacity-0 -translate-x-1 text-cyan-400/70 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+                )}
               </NavLink>
             );
           })}
@@ -331,28 +381,52 @@ export function DashboardLayout({ role = 'student' }: { role?: Role }) {
               {nav.map((item) => {
                 const Icon = item.icon;
                 const label = (T as Record<string, string>)[item.labelKey] ?? item.labelKey;
+                const isLocked = isMentorPending && lockedTeacherRoutes.includes(item.to);
+                const destination = isLocked ? '/mentor/verification' : item.to;
+                const isVerificationActive = item.to === '/mentor/verification' && isMentorPending;
+
                 return (
                   <NavLink
                     key={item.to}
-                    to={item.to}
+                    to={destination}
                     end={item.end}
-                    onClick={() => setMobileNavOpen(false)}
+                    onClick={() => {
+                      setMobileNavOpen(false);
+                      if (isLocked) {
+                        toast.info(lang === 'vi' 
+                          ? 'Tính năng này đang tạm khóa. Vui lòng hoàn tất hoặc chờ Ban quản trị duyệt hồ sơ.' 
+                          : 'This feature is locked. Please wait for Admin approval.');
+                      }
+                    }}
                     className={({ isActive }) =>
                       cn(
                         'group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all',
-                        isActive
+                        isActive && !isLocked
                           ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-300 border border-cyan-500/40 shadow-md shadow-cyan-950/40 font-semibold'
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
+                          : isLocked
+                            ? 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/40 border border-transparent'
+                            : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
                         <div className="flex items-center gap-3 min-w-0">
-                          <Icon className={cn('size-4.5 shrink-0 transition-colors', isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-cyan-300')} />
-                          <span className="truncate">{label}</span>
+                          <Icon className={cn('size-4.5 shrink-0 transition-colors', isLocked ? 'text-slate-600' : isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-cyan-300')} />
+                          <span className={cn('truncate', isLocked && 'text-slate-400')}>{label}</span>
                         </div>
-                        <ChevronRight className={cn('size-4 shrink-0 transition-transform group-hover:translate-x-0.5', isActive ? 'text-cyan-400' : 'text-slate-600 group-hover:text-slate-400')} />
+                        {isLocked ? (
+                          <span className="flex items-center gap-1 text-[10px] text-amber-400/80 font-medium bg-amber-500/10 border border-amber-500/20 rounded-md px-1.5 py-0.5">
+                            <Lock className="size-3" />
+                            <span>{lang === 'vi' ? 'Khóa' : 'Locked'}</span>
+                          </span>
+                        ) : isVerificationActive ? (
+                          <span className="rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 border border-amber-500/30 animate-pulse">
+                            {lang === 'vi' ? 'Cần duyệt' : 'Pending'}
+                          </span>
+                        ) : (
+                          <ChevronRight className={cn('size-4 shrink-0 transition-transform group-hover:translate-x-0.5', isActive ? 'text-cyan-400' : 'text-slate-600 group-hover:text-slate-400')} />
+                        )}
                       </>
                     )}
                   </NavLink>
