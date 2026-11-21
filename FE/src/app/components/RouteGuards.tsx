@@ -24,7 +24,8 @@ export function ProtectedRoute() {
 
 /**
  * Requires an authenticated user whose role is in `allow`. Unauthenticated
- * visitors go to /login; authenticated users with the wrong role get /403.
+ * visitors go to /login; authenticated users with the wrong role get smart redirection
+ * or /403 as a last resort.
  */
 export function RoleRoute({ allow }: { allow: AuthRole[] }) {
   const { user } = useAuth();
@@ -34,6 +35,19 @@ export function RoleRoute({ allow }: { allow: AuthRole[] }) {
     return <Navigate to={loginRedirect(location.pathname, location.search)} replace />;
   }
   if (!allow.includes(user.role)) {
+    // Smart redirection instead of cold 403:
+    // If admin accidentally accessed student/mentor dashboard, send to admin dashboard
+    if (user.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+    // If a mentee accidentally accessed mentor portal, guide them to become-a-mentor
+    if (user.role === 'mentee' && (location.pathname.startsWith('/mentor') || location.pathname.startsWith('/teacher'))) {
+      return <Navigate to="/become-a-mentor" replace />;
+    }
+    // If a mentor accidentally accessed admin portal, send to their own portal
+    if (user.role === 'mentor' && location.pathname.startsWith('/admin')) {
+      return <Navigate to={user.mentorVerified ? '/mentor/dashboard' : '/mentor/verification'} replace />;
+    }
     return <Navigate to="/403" replace />;
   }
   return <Outlet />;
@@ -60,6 +74,12 @@ export function MentorVerifiedRoute() {
 
   if (!user) {
     return <Navigate to={loginRedirect(location.pathname, location.search)} replace />;
+  }
+  if (user.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  if (user.role === 'mentee') {
+    return <Navigate to="/become-a-mentor" replace />;
   }
   if (user.role !== 'mentor') {
     return <Navigate to="/403" replace />;
